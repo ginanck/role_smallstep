@@ -11,7 +11,17 @@ smallstep_ca_name: "Internal CA"
 smallstep_ca_dns: "ca.internal.guru"
 smallstep_ca_port: "4443"
 smallstep_ca_provisioner: "admin"
-small_step_ca_url: "https://{{ smallstep_ca_dns }}:{{ smallstep_ca_port }}"
+smallstep_ca_server_url: "https://{{ smallstep_ca_dns }}:{{ smallstep_ca_port }}"
+
+smallstep_ca_validity: "87660h"
+smallstep_intermediate_ca_validity: "87660h"
+
+smallstep_enable_auto_renewal: false
+smallstep_renewal_threshold: 30
+smallstep_cleanup_old_backups: true
+
+smallstep_max_tls_cert_duration: "87660h"
+smallstep_default_tls_cert_duration: "4380h"
 
 smallstep_certificates:
   - name: "nginx-web"

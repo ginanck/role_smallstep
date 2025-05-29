@@ -1,18 +1,18 @@
 {
   "root": "{{ smallstep_bin_dir }}/ca/certs/root_ca.crt",
   "federatedRoots": null,
-  "crt": "{{ smallstep_bin_dir }}/ca/certs/intermediate_ca.crt", 
+  "crt": "{{ smallstep_bin_dir }}/ca/certs/intermediate_ca.crt",
   "key": "{{ smallstep_bin_dir }}/ca/secrets/intermediate_ca_key",
   "address": ":{{ smallstep_ca_port }}",
-  "insecureAddress": "",
-  "dnsNames": ["{{ smallstep_ca_dns }}"],
+  "dnsNames": [
+    "{{ smallstep_ca_dns }}"
+  ],
   "logger": {
     "format": "text"
   },
   "db": {
     "type": "badgerv2",
-    "dataSource": "{{ smallstep_bin_dir }}/ca/db",
-    "badgerFileLoadingMode": ""
+    "dataSource": "{{ smallstep_bin_dir }}/ca/db"
   },
   "authority": {
     "provisioners": [
@@ -20,10 +20,10 @@
         "type": "JWK",
         "name": "{{ smallstep_ca_provisioner }}",
         "key": {{ smallstep_provisioner_key | to_json }},
-        "encryptedKey": "{{ smallstep_provisioner_encrypted_key }}",
+        "encryptedKey": "{{ smallstep_provisioner_encrypted_key | to_json | to_json }}",
         "claims": {
-          "maxTLSCertDuration": "87660h",
-          "defaultTLSCertDuration": "4380h"
+          "maxTLSCertDuration": "{{ smallstep_max_tls_cert_duration }}",
+          "defaultTLSCertDuration": "{{ smallstep_default_tls_cert_duration }}"
         }
       }
     ]

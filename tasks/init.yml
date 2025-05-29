@@ -57,7 +57,8 @@
       "{{ smallstep_bin_dir }}/ca/secrets/root_ca_key"
       --profile root-ca 
       --password-file "{{ smallstep_bin_dir }}/ca/password.txt"
-      --no-confirm
+      --not-after "{{ smallstep_ca_validity }}"
+      --force
     creates: "{{ smallstep_bin_dir }}/ca/certs/root_ca.crt"
 
 - name: Generate intermediate CA certificate and key  
@@ -71,7 +72,8 @@
       --ca-key "{{ smallstep_bin_dir }}/ca/secrets/root_ca_key"
       --password-file "{{ smallstep_bin_dir }}/ca/password.txt"
       --ca-password-file "{{ smallstep_bin_dir }}/ca/password.txt"
-      --no-confirm
+      --not-after "{{ smallstep_intermediate_ca_validity }}"
+      --force
     creates: "{{ smallstep_bin_dir }}/ca/certs/intermediate_ca.crt"
 
 - name: Generate provisioner JWK key pair
