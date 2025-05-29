@@ -1,0 +1,275 @@
+---
+
+- name: Check certificate expiration status
+  ansible.builtin.command:
+    cmd: >
+      step certificate inspect
+      "{{ smallstep_www_certs_dir }}/{{ item.name }}/{{ item.name }}.crt"
+      --format json
+  loop: "{{ smallstep_certificates }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: cert_expiry_check
+  changed_when: false
+  failed_when: false
+
+- name: Parse certificate expiration dates
+  ansible.builtin.set_fact:
+    cert_renewal_status: >-
+      {{
+        cert_renewal_status | default([]) +
+        [{
+          'name': item.item.name,
+          'cert_item': item.item,
+          'expires_at': (item.stdout | from_json).validity.end,
+          'expires_timestamp': ((item.stdout | from_json).validity.end | to_datetime('%Y-%m-%dT%H:%M:%SZ')).timestamp() | int,
+          'current_timestamp': ansible_date_time.epoch | int,
+          'renewal_threshold_days': smallstep_renewal_threshold | default(30),
+          'renewal_threshold_seconds': (smallstep_renewal_threshold | default(30)) | int * 86400,
+          'days_until_expiry': (((((item.stdout | from_json).validity.end | to_datetime('%Y-%m-%dT%H:%M:%SZ')).timestamp() | int) - (ansible_date_time.epoch | int)) / 86400) | round(1),
+          'needs_renewal': (((item.stdout | from_json).validity.end | to_datetime('%Y-%m-%dT%H:%M:%SZ')).timestamp() | int) - (ansible_date_time.epoch | int) < ((smallstep_renewal_threshold | default(30)) | int * 86400)
+        }]
+      }}
+  loop: "{{ cert_expiry_check.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  when: item.rc == 0
+
+- name: Display certificates needing renewal
+  ansible.builtin.debug:
+    msg: |
+      Certificate: {{ item.name }}
+      Expires at: {{ item.expires_at }}
+      Current time: {{ ansible_date_time.iso8601 }}
+      Days until expiry: {{ item.days_until_expiry }}
+      Renewal threshold: {{ item.renewal_threshold_days }} days
+      Renewal needed: {{ item.needs_renewal }}
+  loop: "{{ cert_renewal_status }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Create backup directory for old certificates
+  ansible.builtin.file:
+    path: "{{ smallstep_www_certs_dir }}/{{ item.name }}/old/{{ ansible_date_time.date }}-{{ ansible_date_time.time | replace(':', '-') }}"
+    state: directory
+    owner: "{{ item.cert_item.owner | default('root') }}"
+    group: "{{ item.cert_item.group | default('root') }}"
+    mode: "0755"
+  loop: "{{ cert_renewal_status }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: item.needs_renewal | bool
+
+- name: Move existing certificates to backup directory
+  ansible.builtin.copy:
+    src: "{{ smallstep_www_certs_dir }}/{{ item.name }}/{{ item.name }}.crt"
+    dest: "{{ smallstep_www_certs_dir }}/{{ item.name }}/old/{{ ansible_date_time.date }}-{{ ansible_date_time.time | replace(':', '-') }}/{{ item.name }}.crt"
+    owner: "{{ item.cert_item.owner | default('root') }}"
+    group: "{{ item.cert_item.group | default('root') }}"
+    mode: "{{ item.cert_item.cert_mode | default('0644') }}"
+    remote_src: true
+  loop: "{{ cert_renewal_status }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: item.needs_renewal | bool
+
+- name: Move existing private keys to backup directory
+  ansible.builtin.copy:
+    src: "{{ smallstep_www_certs_dir }}/{{ item.name }}/{{ item.name }}.key"
+    dest: "{{ smallstep_www_certs_dir }}/{{ item.name }}/old/{{ ansible_date_time.date }}-{{ ansible_date_time.time | replace(':', '-') }}/{{ item.name }}.key"
+    owner: "{{ item.cert_item.owner | default('root') }}"
+    group: "{{ item.cert_item.group | default('root') }}"
+    mode: "{{ item.cert_item.key_mode | default('0600') }}"
+    remote_src: true
+  loop: "{{ cert_renewal_status }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: item.needs_renewal | bool
+
+- name: Move existing fullchain certificates to backup directory
+  ansible.builtin.copy:
+    src: "{{ smallstep_www_certs_dir }}/{{ item.name }}/{{ item.name }}-fullchain.crt"
+    dest: "{{ smallstep_www_certs_dir }}/{{ item.name }}/old/{{ ansible_date_time.date }}-{{ ansible_date_time.time | replace(':', '-') }}/{{ item.name }}-fullchain.crt"
+    owner: "{{ item.cert_item.owner | default('root') }}"
+    group: "{{ item.cert_item.group | default('root') }}"
+    mode: "{{ item.cert_item.cert_mode | default('0644') }}"
+    remote_src: true
+  loop: "{{ cert_renewal_status }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: 
+    - item.needs_renewal | bool
+  failed_when: false
+
+- name: Get CA root certificate fingerprint
+  ansible.builtin.command:
+    cmd: step certificate fingerprint "{{ smallstep_bin_dir }}/ca/certs/root_ca.crt"
+  register: ca_fingerprint_result
+  changed_when: false
+  run_once: true
+  when: cert_renewal_status | selectattr('needs_renewal', 'equalto', true) | list | length > 0
+
+- name: Set CA fingerprint fact
+  ansible.builtin.set_fact:
+    ca_fingerprint: "{{ ca_fingerprint_result.stdout.strip() }}"
+  run_once: true
+  when: cert_renewal_status | selectattr('needs_renewal', 'equalto', true) | list | length > 0
+
+- name: Renew certificates using step ca renew command
+  ansible.builtin.command:
+    cmd: >
+      step ca renew
+      "{{ smallstep_www_certs_dir }}/{{ item.name }}/{{ item.name }}.crt"
+      "{{ smallstep_www_certs_dir }}/{{ item.name }}/{{ item.name }}.key"
+      --ca-url "{{ smallstep_ca_server_url }}"
+      --force
+  environment:
+    STEPPATH: "{{ smallstep_bin_dir }}/ca"
+  loop: "{{ cert_renewal_status }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: item.needs_renewal | bool
+  register: cert_renewal_result
+
+- name: Generate new certificates if renewal fails (fallback)
+  ansible.builtin.command:
+    cmd: >
+      step ca certificate
+      "{{ item.item.cert_item.common_name }}"
+      "{{ smallstep_www_certs_dir }}/{{ item.item.name }}/{{ item.item.name }}.crt"
+      "{{ smallstep_www_certs_dir }}/{{ item.item.name }}/{{ item.item.name }}.key"
+      --provisioner "{{ item.item.cert_item.provisioner | default(smallstep_ca_provisioner) }}"
+      --ca-url "{{ smallstep_ca_server_url }}"
+      --fingerprint "{{ ca_fingerprint }}"
+      {% if item.item.cert_item.san is defined and item.item.cert_item.san | length > 0 %}
+      {% for san_entry in item.item.cert_item.san %}
+      --san "{{ san_entry }}"
+      {% endfor %}
+      {% endif %}
+      --not-after "{{ item.item.cert_item.validity | default('8760h') }}"
+      {% if item.item.cert_item.key_type is defined %}
+      --kty "{{ item.item.cert_item.key_type }}"
+      {% endif %}
+      {% if item.item.cert_item.key_size is defined %}
+      --size "{{ item.item.cert_item.key_size }}"
+      {% endif %}
+      {% if item.item.cert_item.key_curve is defined %}
+      --curve "{{ item.item.cert_item.key_curve }}"
+      {% endif %}
+      --force
+  environment:
+    STEPPATH: "{{ smallstep_bin_dir }}/ca"
+  loop: "{{ cert_renewal_result.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  when: 
+    - item.item.needs_renewal | bool
+    - item.rc != 0
+  register: cert_generation_result
+
+- name: Recreate fullchain certificates with intermediate for renewed certs
+  ansible.builtin.shell: |
+    cat "{{ smallstep_www_certs_dir }}/{{ item.name }}/{{ item.name }}.crt" \
+        "{{ smallstep_bin_dir }}/ca/certs/intermediate_ca.crt" \
+        "{{ smallstep_bin_dir }}/ca/certs/root_ca.crt" \
+        > "{{ smallstep_www_certs_dir }}/{{ item.name }}/{{ item.name }}-fullchain.crt"
+  loop: "{{ cert_renewal_status }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when:
+    - item.needs_renewal | bool
+    - intermediate_ca_stat_renewal.stat.exists | default(false)
+
+- name: Recreate fullchain certificates without intermediate for renewed certs
+  ansible.builtin.shell: |
+    cat "{{ smallstep_www_certs_dir }}/{{ item.name }}/{{ item.name }}.crt" \
+        "{{ smallstep_bin_dir }}/ca/certs/root_ca.crt" \
+        > "{{ smallstep_www_certs_dir }}/{{ item.name }}/{{ item.name }}-fullchain.crt"
+  loop: "{{ cert_renewal_status }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: 
+    - item.needs_renewal | bool
+    - not (intermediate_ca_stat_renewal.stat.exists | default(false))
+
+- name: Verify renewed certificates
+  ansible.builtin.command:
+    cmd: >
+      step certificate verify
+      "{{ smallstep_www_certs_dir }}/{{ item.name }}/{{ item.name }}.crt"
+      --roots "{{ smallstep_bin_dir }}/ca/certs/root_ca.crt"
+  environment:
+    STEPPATH: "{{ smallstep_bin_dir }}/ca"
+  loop: "{{ cert_renewal_status }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: item.needs_renewal | bool
+  register: renewed_cert_verify_result
+  changed_when: false
+
+- name: Get renewed certificate information
+  ansible.builtin.command:
+    cmd: >
+      step certificate inspect
+      "{{ smallstep_www_certs_dir }}/{{ item.name }}/{{ item.name }}.crt"
+      --format json
+  loop: "{{ cert_renewal_status }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: item.needs_renewal | bool
+  register: renewed_cert_info_result
+  changed_when: false
+
+- name: Update certificate info file for renewed certificates
+  ansible.builtin.template:
+    src: info/cert_info.txt.j2
+    dest: "{{ smallstep_www_certs_dir }}/{{ item.item.name }}/cert_info.txt"
+    owner: "{{ item.item.cert_item.owner | default('root') }}"
+    group: "{{ item.item.cert_item.group | default('root') }}"
+    mode: "0644"
+  vars:
+    cert_item: "{{ item.item.cert_item }}"
+    cert_details: "{{ item.stdout | from_json }}"
+  loop: "{{ renewed_cert_info_result.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  when: 
+    - renewed_cert_info_result is defined
+    - item.skipped is not defined
+
+- name: Log renewal completion with backup location
+  ansible.builtin.debug:
+    msg: |
+      Certificate renewal completed for {{ item.name }}
+      New expiry: {{ (renewed_cert_info_result.results | selectattr('item.name', 'equalto', item.name) | first).stdout | from_json | json_query('validity.end') }}
+      Old certificates backed up to: {{ smallstep_www_certs_dir }}/{{ item.name }}/old/{{ ansible_date_time.date }}-{{ ansible_date_time.time | replace(':', '-') }}/
+  loop: "{{ cert_renewal_status }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: 
+    - item.needs_renewal | bool
+    - renewed_cert_info_result is defined
+
+- name: Trigger service restarts for renewed certificates
+  ansible.builtin.debug:
+    msg: "Triggering service restart for {{ item.cert_item.service_name | default('no service specified') }}"
+  loop: "{{ cert_renewal_status }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: 
+    - item.needs_renewal | bool
+    - item.cert_item.service_name is defined
+  notify: "restart {{ item.cert_item.service_name }}"
+
+- name: Clean up old certificate backup directories (keep last 5)
+  ansible.builtin.shell: |
+    cd "{{ smallstep_www_certs_dir }}/{{ item.name }}/old" && \
+    ls -dt */ 2>/dev/null | tail -n +6 | xargs -r rm -rf
+  loop: "{{ cert_renewal_status }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: 
+    - item.needs_renewal | bool
+    - smallstep_cleanup_old_backups | default(true) | bool
+  changed_when: false
+  failed_when: false
