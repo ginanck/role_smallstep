@@ -1,0 +1,40 @@
+{
+  "root": "{{ smallstep_bin_dir }}/ca/certs/root_ca.crt",
+  "federatedRoots": null,
+  "crt": "{{ smallstep_bin_dir }}/ca/certs/intermediate_ca.crt", 
+  "key": "{{ smallstep_bin_dir }}/ca/secrets/intermediate_ca_key",
+  "address": ":{{ smallstep_ca_port }}",
+  "insecureAddress": "",
+  "dnsNames": ["{{ smallstep_ca_dns }}"],
+  "logger": {
+    "format": "text"
+  },
+  "db": {
+    "type": "badgerv2",
+    "dataSource": "{{ smallstep_bin_dir }}/ca/db",
+    "badgerFileLoadingMode": ""
+  },
+  "authority": {
+    "provisioners": [
+      {
+        "type": "JWK",
+        "name": "{{ smallstep_ca_provisioner }}",
+        "key": {{ smallstep_provisioner_key | to_json }},
+        "encryptedKey": "{{ smallstep_provisioner_encrypted_key }}",
+        "claims": {
+          "maxTLSCertDuration": "87660h",
+          "defaultTLSCertDuration": "4380h"
+        }
+      }
+    ]
+  },
+  "tls": {
+    "cipherSuites": [
+      "TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256",
+      "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256"
+    ],
+    "minVersion": 1.2,
+    "maxVersion": 1.3,
+    "renegotiation": false
+  }
+}

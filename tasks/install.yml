@@ -1,0 +1,82 @@
+---
+
+- name: Create smallstep ca-server dir
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  loop:
+    - "{{ smallstep_bin_dir }}"
+    - "{{ smallstep_bin_dir }}/ca/certs"
+    - "{{ smallstep_bin_dir }}/ca/config"
+    - "{{ smallstep_bin_dir }}/ca/secrets"
+    - "{{ smallstep_bin_dir }}/bin"
+    - "{{ smallstep_bin_dir }}/archive/ca"
+    - "{{ smallstep_bin_dir }}/archive/cli"
+    - "{{ smallstep_www_dir }}"
+    - "{{ smallstep_www_certs_dir }}"
+    - "{{ smallstep_www_scripts_dir }}"
+    - "{{ smallstep_log_dir }}"
+  loop_control:
+    label: "{{ item }}"
+
+- name: Download step-ca binary
+  ansible.builtin.get_url:
+    url: "{{ item }}"
+    dest: "{{ smallstep_bin_dir }}/archive/{{ item | basename }}"
+    mode: "0644"
+    timeout: 30
+  retries: 3
+  delay: 5
+  register: download_result
+  until: download_result is succeeded
+  loop:
+    - "{{ smallstep_ca_url }}"
+    - "{{ smallstep_cli_url }}"
+  loop_control:
+    label: "{{ item | basename }}"
+
+- name: Unarchive step-ca Server
+  ansible.builtin.unarchive:
+    src: "{{ smallstep_bin_dir }}/archive/{{ smallstep_ca_archive }}"
+    dest: "{{ smallstep_bin_dir }}/archive/ca"
+    owner: root
+    group: root
+    mode: "0755"
+    remote_src: true
+
+- name: Unarchive step-cli binary
+  ansible.builtin.unarchive:
+    src: "{{ smallstep_bin_dir }}/archive/{{ smallstep_cli_archive }}"
+    dest: "{{ smallstep_bin_dir }}/archive/cli"
+    owner: root
+    group: root
+    mode: "0755"
+    remote_src: true
+    extra_opts:
+      - --strip-components=1
+
+- name: Copy binary files
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "{{ smallstep_bin_dir }}/bin"
+    owner: root
+    group: root
+    mode: "0755"
+    remote_src: true
+  loop:
+    - "{{ smallstep_bin_dir }}/archive/ca/step-ca"
+    - "{{ smallstep_bin_dir }}/archive/cli/bin/step"
+
+- name: Set up alternatives for smallstep
+  community.general.alternatives:
+    name: "step-ca"
+    path: "{{ smallstep_bin_dir }}/bin/step-ca"
+    link: "{{ smallstep_link_path }}/step-ca"
+    priority: "{{ ansible_date_time.epoch | int }}"
+    subcommands:
+      - name: "step"
+        path: "{{ smallstep_bin_dir }}/bin/step"
+        link: "{{ smallstep_link_path }}/step"

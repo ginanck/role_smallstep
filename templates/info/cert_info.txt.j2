@@ -1,0 +1,55 @@
+Certificate Information for {{ cert_item.name }}
+==============================================
+
+Certificate Name: {{ cert_item.name }}
+Common Name: {{ cert_details.subject.common_name[0] | default(cert_item.common_name | default(cert_item.name)) }}
+Serial Number: {{ cert_details.serial_number }}
+
+Subject:
+{% for key, value in cert_details.subject.items() %}
+  {{ key | title | replace('_', ' ') }}: {{ value | join(', ') if value is iterable and value is not string else value }}
+{% endfor %}
+
+Issuer:
+{% for key, value in cert_details.issuer.items() %}
+  {{ key | title | replace('_', ' ') }}: {{ value | join(', ') if value is iterable and value is not string else value }}
+{% endfor %}
+
+Validity:
+  Not Before: {{ cert_details.validity.start }}
+  Not After: {{ cert_details.validity.end }}
+  Duration: {{ cert_item.validity | default('8760h') }}
+
+{% if cert_details.extensions.subject_alt_name is defined %}
+Subject Alternative Names:
+{% for san in cert_details.extensions.subject_alt_name.dns_names | default([]) %}
+  DNS: {{ san }}
+{% endfor %}
+{% for san in cert_details.extensions.subject_alt_name.ip_addresses | default([]) %}
+  IP: {{ san }}
+{% endfor %}
+{% endif %}
+
+Key Information:
+  Algorithm: {{ cert_details.subject_key_info.key_algorithm.name }}
+{% if cert_details.subject_key_info.rsa_public_key is defined %}
+  Size: {{ cert_details.subject_key_info.rsa_public_key.length }} bits
+{% elif cert_details.subject_key_info.ec_public_key is defined %}
+  Curve: {{ cert_details.subject_key_info.ec_public_key.curve }}
+{% else %}
+  Size: N/A
+{% endif %}
+
+Fingerprint (SHA256): {{ cert_details.fingerprint_sha256 }}
+
+Provisioner: {{ cert_details.extensions.step_provisioner.name | default(cert_item.provisioner | default(smallstep_ca_provisioner | default('admin'))) }}
+CA Fingerprint: {{ smallstep_ca_fingerprint }}
+
+Files generated:
+- Private Key: {{ smallstep_www_certs_dir }}/{{ cert_item.name }}/{{ cert_item.name }}.key
+- Certificate: {{ smallstep_www_certs_dir }}/{{ cert_item.name }}/{{ cert_item.name }}.crt
+- CA Certificate: {{ smallstep_www_certs_dir }}/{{ cert_item.name }}/ca.crt
+- Fullchain Certificate: {{ smallstep_www_certs_dir }}/{{ cert_item.name }}/{{ cert_item.name }}-fullchain.crt
+- Renewal Script: {{ smallstep_www_certs_dir }}/{{ cert_item.name }}/renew_{{ cert_item.name }}.sh
+
+Generated on: {{ ansible_date_time.iso8601 }}

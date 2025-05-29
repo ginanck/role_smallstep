@@ -1,0 +1,3 @@
+#!/bin/bash
+exec {{ smallstep_bin_dir }}/bin/step-ca {{ smallstep_bin_dir }}/ca/config/ca.json \
+  --password-file {{ smallstep_bin_dir }}/ca/password.txt >> {{ smallstep_log_dir }}/step-ca.log 2>&1

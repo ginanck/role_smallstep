@@ -1,0 +1,137 @@
+---
+
+## This Init task is initial setup of the CA server.
+## It creates the CA configuration file and starts the CA server.
+## But it does not add below config to the ca.json file
+## This attributes allow us to define ca-server validation period for TLS certificates.
+## It is important to set this values to match your infrastructure.
+## For more information see: https://smallstep.com/docs/step-ca/configuration#claims
+## Example: "claims": { "maxTLSCertDuration": "87660h", "defaultTLSCertDuration": "4380h" }
+
+# - name: Init ca-server
+#   ansible.builtin.command:
+#     cmd: >
+#       step ca init
+#       --name "{{ smallstep_ca_name }}"
+#       --dns "{{ smallstep_ca_dns }}"
+#       --address ":{{ smallstep_ca_port }}"
+#       --provisioner "{{ smallstep_ca_provisioner }}"
+#       --deployment-type "standalone"
+#       --password-file "{{ smallstep_bin_dir }}/ca/password.txt"
+#     creates: "{{ smallstep_bin_dir }}/ca/config/ca.json"
+#   environment:
+#     STEPPATH: "{{ smallstep_bin_dir }}/ca"
+
+- name: Update password file for ca-server
+  ansible.builtin.template:
+    src: password.txt.j2
+    dest: "{{ smallstep_bin_dir }}/ca/password.txt"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: CA Server Start Script
+  ansible.builtin.template:
+    src: start-ca.sh.j2
+    dest: "{{ smallstep_bin_dir }}/start-ca.sh"
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Create CA directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - "{{ smallstep_bin_dir }}/ca/config"
+    - "{{ smallstep_bin_dir }}/ca/certs"
+    - "{{ smallstep_bin_dir }}/ca/secrets"
+    - "{{ smallstep_bin_dir }}/ca/db"
+
+- name: Generate root CA certificate and key
+  ansible.builtin.command:
+    cmd: >
+      step certificate create "{{ smallstep_ca_name }}" 
+      "{{ smallstep_bin_dir }}/ca/certs/root_ca.crt" 
+      "{{ smallstep_bin_dir }}/ca/secrets/root_ca_key"
+      --profile root-ca 
+      --password-file "{{ smallstep_bin_dir }}/ca/password.txt"
+      --no-confirm
+    creates: "{{ smallstep_bin_dir }}/ca/certs/root_ca.crt"
+
+- name: Generate intermediate CA certificate and key  
+  ansible.builtin.command:
+    cmd: >
+      step certificate create "{{ smallstep_ca_name }} Intermediate CA"
+      "{{ smallstep_bin_dir }}/ca/certs/intermediate_ca.crt"
+      "{{ smallstep_bin_dir }}/ca/secrets/intermediate_ca_key"
+      --profile intermediate-ca
+      --ca "{{ smallstep_bin_dir }}/ca/certs/root_ca.crt"
+      --ca-key "{{ smallstep_bin_dir }}/ca/secrets/root_ca_key"
+      --password-file "{{ smallstep_bin_dir }}/ca/password.txt"
+      --ca-password-file "{{ smallstep_bin_dir }}/ca/password.txt"
+      --no-confirm
+    creates: "{{ smallstep_bin_dir }}/ca/certs/intermediate_ca.crt"
+
+- name: Generate provisioner JWK key pair
+  ansible.builtin.command:
+    cmd: >
+      step crypto jwk create 
+      "{{ smallstep_bin_dir }}/ca/secrets/{{ smallstep_ca_provisioner }}_pub.jwk"
+      "{{ smallstep_bin_dir }}/ca/secrets/{{ smallstep_ca_provisioner }}_priv.jwk"
+      --kty EC --crv P-256 
+      --password-file "{{ smallstep_bin_dir }}/ca/password.txt"
+    creates: "{{ smallstep_bin_dir }}/ca/secrets/{{ smallstep_ca_provisioner }}_pub.jwk"
+
+- name: Get root certificate fingerprint
+  ansible.builtin.command:
+    cmd: step certificate fingerprint "{{ smallstep_bin_dir }}/ca/certs/root_ca.crt"
+  register: root_fingerprint
+  changed_when: false
+
+- name: Read provisioner public key
+  ansible.builtin.slurp:
+    src: "{{ smallstep_bin_dir }}/ca/secrets/{{ smallstep_ca_provisioner }}_pub.jwk"
+  register: provisioner_pub_key
+
+- name: Read provisioner encrypted private key
+  ansible.builtin.slurp:
+    src: "{{ smallstep_bin_dir }}/ca/secrets/{{ smallstep_ca_provisioner }}_priv.jwk"
+  register: provisioner_priv_key
+
+- name: Set facts for JSON construction
+  ansible.builtin.set_fact:
+    smallstep_root_fingerprint: "{{ root_fingerprint.stdout }}"
+    smallstep_provisioner_key: "{{ provisioner_pub_key.content | b64decode | from_json }}"
+    smallstep_provisioner_encrypted_key: "{{ provisioner_priv_key.content | b64decode }}"
+
+- name: Generate ca.json configuration
+  ansible.builtin.template:
+    src: config/ca.json.j2
+    dest: "{{ smallstep_bin_dir }}/ca/config/ca.json"
+    mode: '0600'
+    backup: yes
+
+- name: Generate defaults.json configuration  
+  ansible.builtin.template:
+    src: config/defaults.json.j2
+    dest: "{{ smallstep_bin_dir }}/ca/config/defaults.json"
+    mode: '0644'
+    backup: yes
+
+- name: Create systemd file for smallstep
+  ansible.builtin.template:
+    src: systemd.service.j2
+    dest: /etc/systemd/system/smallstep.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: restart smallstep
+
+- name: Start and enable smallstep service
+  ansible.builtin.systemd:
+    name: smallstep
+    state: started
+    enabled: true
+    daemon_reload: true

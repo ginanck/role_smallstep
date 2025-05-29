@@ -1,0 +1,15 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Smallstep Certificate Authority
+After=network.target
+
+[Service]
+ExecStart={{ smallstep_bin_dir }}/start-ca.sh
+WorkingDirectory={{ smallstep_bin_dir }}/ca
+User=root
+Group=root
+Restart=on-failure
+Environment=STEP_CA_DIR={{ smallstep_bin_dir }}/ca
+
+[Install]
+WantedBy=multi-user.target

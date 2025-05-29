@@ -1,0 +1,75 @@
+---
+# defaults file for role_smallstep
+
+# https://github.com/smallstep/certificates
+# https://github.com/smallstep/cli
+
+# Below variables are defined in the ansible vault!
+# smallstep_ca_init_password: ""
+
+smallstep_ca_name: "Internal CA"
+smallstep_ca_dns: "ca.internal.guru"
+smallstep_ca_port: "4443"
+smallstep_ca_provisioner: "admin"
+small_step_ca_url: "https://{{ smallstep_ca_dns }}:{{ smallstep_ca_port }}"
+
+smallstep_certificates:
+  - name: "nginx-web"
+    common_name: "web.example.com"
+    san:
+      - "web.example.com"
+      - "www.example.com"
+      - "192.168.1.100"
+    validity: "8760h"
+    key_mode: "0600"
+    cert_mode: "0644"
+    key_type: "RSA"
+    key_size: 2048
+
+  - name: "api-server"
+    common_name: "api.example.com"
+    san:
+      - "api.example.com"
+      - "api-internal.example.com"
+    validity: "8760h"
+    key_type: "EC"
+    key_curve: "P-256"
+
+  - name: "database"
+    common_name: "db.example.com"
+    san:
+      - "db.example.com"
+      - "192.168.1.101"
+    validity: "8760h"
+    key_type: "RSA"
+    key_size: 2048
+
+  - name: "static"
+    common_name: "static.internal.guru"
+    san:
+      - "*.internal.guru"
+      - "web.internal.guru"
+      - "172.16.2.81"
+    validity: "8760h"
+    key_type: "RSA"
+    key_size: 2048
+
+smallstep_base_url: "https://github.com/smallstep"
+smallstep_bin_dir: "/opt/smallstep"
+smallstep_link_path: "/usr/local/bin"
+
+smallstep_www_dir: "{{ smallstep_bin_dir }}/www"
+smallstep_www_certs_dir: "{{ smallstep_www_dir }}/certs"
+smallstep_www_scripts_dir: "{{ smallstep_www_dir }}/scripts"
+smallstep_log_dir: "/var/log/smallstep"
+
+smallstep_ca_version: "0.28.3"
+smallstep_ca_archive: "step-ca_linux_{{ smallstep_ca_version }}_amd64.tar.gz"
+smallstep_ca_url: "{{ smallstep_base_url }}/certificates/releases/download/v{{ smallstep_ca_version }}/{{ smallstep_ca_archive }}"
+# https://github.com/smallstep/certificates/releases/download/v0.28.3/step-ca_linux_0.28.3_amd64.tar.gz
+
+smallstep_cli_version: "0.28.6"
+smallstep_cli_archive: "step_linux_{{ smallstep_cli_version }}_amd64.tar.gz"
+smallstep_cli_url: "{{ smallstep_base_url }}/cli/releases/download/v{{ smallstep_cli_version }}/{{ smallstep_cli_archive }}"
+# https://github.com/smallstep/cli/releases/download/v0.28.6/step_linux_0.28.6_amd64.tar.gz
+

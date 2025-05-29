@@ -1,0 +1,12 @@
+---
+# tasks file for role_smallstep
+
+- name: Install smallstep ca-server
+  ansible.builtin.include_tasks: install.yml
+
+- name: Initialize smallstep ca-server
+  ansible.builtin.include_tasks: init.yml
+
+- name: Issue certificates
+  ansible.builtin.include_tasks: issue_certs.yml
+  when: smallstep_certificates is defined and smallstep_certificates | length > 0
