@@ -20,7 +20,7 @@
         "type": "JWK",
         "name": "{{ smallstep_ca_provisioner }}",
         "key": {{ smallstep_provisioner_key | to_json }},
-        "encryptedKey": "{{ smallstep_provisioner_encrypted_key | to_json | to_json }}",
+        "encryptedKey": {{ smallstep_provisioner_encrypted_key | to_json | to_json }},
         "claims": {
           "maxTLSCertDuration": "{{ smallstep_max_tls_cert_duration }}",
           "defaultTLSCertDuration": "{{ smallstep_default_tls_cert_duration }}"

@@ -1,0 +1,19 @@
+---
+
+- name: Generate install-linux.sh script
+  ansible.builtin.template:
+    src: install-scripts/install-linux.sh.j2
+    dest: "{{ smallstep_www_scripts_dir }}/install-linux.sh"
+    mode: "0644"
+
+- name: Generate install-linux.sh script
+  ansible.builtin.template:
+    src: install-scripts/install-macos.sh.j2
+    dest: "{{ smallstep_www_scripts_dir }}/install-macos.sh"
+    mode: "0644"
+
+- name: Generate install-windows.ps1
+  ansible.builtin.template:
+    src: install-scripts/install-windows.ps1.j2
+    dest: "{{ smallstep_www_scripts_dir }}/install-windows.ps1"
+    mode: "0644"

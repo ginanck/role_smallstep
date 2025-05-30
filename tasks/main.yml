@@ -7,6 +7,9 @@
 - name: Initialize smallstep ca-server
   ansible.builtin.include_tasks: init.yml
 
+- name: Generate certificates
+  ansible.builtin.include_tasks: generate_scripts.yml
+
 - name: Issue certificates
   ansible.builtin.include_tasks: issue_certs.yml
   when: smallstep_certificates is defined and smallstep_certificates | length > 0
