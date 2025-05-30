@@ -133,16 +133,3 @@
   loop: "{{ cert_info_result.results }}"
   loop_control:
     label: "{{ item.item.name }}"
-
-- name: Create certificate renewal script
-  ansible.builtin.template:
-    src: scripts/renew_cert.sh.j2
-    dest: "{{ smallstep_www_certs_dir }}/{{ item.name }}/renew_cert.sh"
-    owner: "{{ item.owner | default('root') }}"
-    group: "{{ item.group | default('root') }}"
-    mode: "0755"
-  vars:
-    cert_item: "{{ item }}"
-  loop: "{{ smallstep_certificates }}"
-  loop_control:
-    label: "{{ item.name }}"
