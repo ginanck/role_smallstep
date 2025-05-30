@@ -1,80 +1,24 @@
 #!/usr/bin/env bash
 
-# Detect shell
-if [[ -n "$ZSH_VERSION" ]]; then
-  SHELL_NAME="zsh"
-elif [[ -n "$BASH_VERSION" ]]; then
-  SHELL_NAME="bash"
-else
-  echo "[!] Unsupported shell. Please run with bash or zsh."
-  exit 1
-fi
-
-# Detect architecture
-ARCH=$(uname -m)
-case "$ARCH" in
-    x86_64)
-        ARCH_NAME="amd64"
-        ;;
-    arm64)
-        ARCH_NAME="arm64"
-        ;;
-    *)
-        echo "[!] Unsupported architecture: $ARCH"
-        exit 1
-        ;;
-esac
-
 # Config
 CA_CERT="root_ca.crt"
-CA_URL="{{ smallstep_ca_server_url }}"
-FINGERPRINT="{{ smallstep_ca_fingerprint }}"
-CLI_VERSION="{{ smallstep_cli_version }}"
-CLI_ARCHIVE="step_darwin_${CLI_VERSION}_${ARCH_NAME}.tar.gz"
-CLI_URL="{{ smallstep_base_url }}/cli/releases/download/v${CLI_VERSION}/${CLI_ARCHIVE}"
+ROOTS_URL="{{ smallstep_ca_server_url }}/roots.pem"
 
-echo "[*] Using $SHELL_NAME"
-echo "[*] Detected architecture: $ARCH_NAME"
-echo "[*] Bootstrapping from: $CA_URL"
-echo "[*] Fingerprint: $FINGERPRINT"
+echo "[*] Downloading root CA certificate..."
+echo "[*] Downloading from: $ROOTS_URL"
 
 set -e
 
-# Install step CLI if not present
-if ! command -v step &>/dev/null; then
-  echo "[*] Installing step CLI..."
-  echo "[*] Downloading: $CLI_URL"
-  
-  # Download and extract
-  curl -LO "$CLI_URL"
-  tar -xf "$CLI_ARCHIVE"
-  
-  # Move to /usr/local/bin
-  sudo mv step_*/bin/step /usr/local/bin/
-  sudo chmod +x /usr/local/bin/step
-  
-  # Create symlink to /usr/bin for compatibility
-  sudo ln -sf /usr/local/bin/step /usr/bin/step
-  
-  # Cleanup
-  rm -rf step_* step-* "$CLI_ARCHIVE"
-
-  echo "[*] Step CLI installed successfully"
-else
-  echo "[*] Step CLI already installed"
-fi
-
-# Bootstrap with specified fingerprint
-echo "[*] Bootstrapping Smallstep CA..."
-step ca bootstrap \
-  --ca-url "$CA_URL" \
-  --fingerprint "$FINGERPRINT" \
-  --force \
-  --install
+# Download the root CA certificate to current directory
+curl -o "$CA_CERT" "$ROOTS_URL"
+echo "[*] Certificate downloaded to: $CA_CERT"
 
 # Install to system trust store
-CA_CERT="$HOME/.step/certs/$CA_CERT"
-
 echo "[*] Installing CA to macOS system keychain..."
 sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain "$CA_CERT"
+
+echo "[*] Cleaning up downloaded certificate file..."
+rm "$CA_CERT"
+
 echo "[✓] Done! CA is trusted system-wide."
+echo "[*] Certificate file remains at: $CA_CERT"

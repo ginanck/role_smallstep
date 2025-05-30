@@ -1,0 +1,99 @@
+# Remote CA Certificate Installation
+
+This document describes how to execute the CA certificate installation scripts directly from the remote repository without cloning it locally.
+
+## Prerequisites
+
+- Internet access to reach the repository and CA server
+- Administrative/sudo privileges on the target system
+- Required tools: `curl` (Linux/macOS) or PowerShell (Windows)
+
+## Installation Commands
+### Linux Systems
+
+```bash
+curl -sSL {{ smallstep_ca_scripts_url }}/install-linux.sh | bash
+```
+
+### macOS Systems
+
+```bash
+curl -sSL {{ smallstep_ca_scripts_url }}/install-macos.sh | bash
+```
+
+### Windows Systems
+
+```powershell
+Invoke-WebRequest -Uri "{{ smallstep_ca_scripts_url }}/install-windows.ps1" -UseBasicParsing | Invoke-Expression
+```
+
+## Alternative: Download and Execute
+If you prefer to review the script before execution:
+
+### Linux/macOS
+
+```bash
+# Download the script
+curl -O {{ smallstep_ca_scripts_url }}/install-linux.sh
+
+# Review the script
+cat install-linux.sh
+
+# Make executable and run
+chmod +x install-linux.sh
+./install-linux.sh
+```
+
+### Windows
+
+```powershell
+# Download the script
+Invoke-WebRequest -Uri "{{ smallstep_ca_scripts_url }}/install-windows.ps1" -OutFile "install-windows.ps1"
+
+# Review the script
+Get-Content install-windows.ps1
+
+# Execute the script
+.\install-windows.ps1
+```
+
+## What the Scripts Do
+
+1. **Download** the root CA certificate from `{{ smallstep_ca_server_url }}/roots.pem`
+2. **Install** the certificate to the OS-specific trust store:
+   - **Linux**: `/usr/local/share/ca-certificates/` (Debian-based) or `/etc/pki/ca-trust/source/anchors/` (RHEL-based)
+   - **macOS**: System Keychain (`/Library/Keychains/System.keychain`)
+   - **Windows**: Local Machine Trusted Root store
+3. **Update** the system's certificate trust database
+4. **Leave** the certificate file (`root_ca.crt`) in the current directory for reference
+
+## Verification
+
+After installation, you can verify the certificate is trusted:
+
+### Linux
+```bash
+curl -v {{ smallstep_ca_server_url }}/
+```
+
+### macOS
+```bash
+curl -v {{ smallstep_ca_server_url }}/
+security find-certificate -c "{{ smallstep_ca_name }}" /Library/Keychains/System.keychain
+```
+
+### Windows
+```powershell
+Invoke-WebRequest {{ smallstep_ca_server_url }}/
+# Or check in Certificate Manager (certmgr.msc)
+```
+
+## Troubleshooting
+
+- **Permission errors**: Ensure you're running with administrative privileges
+- **Network errors**: Check internet connectivity and firewall settings
+- **Certificate errors**: Verify the CA server is accessible at `{{ smallstep_ca_server_url }}/roots.pem`
+
+## Security Note
+
+Always review scripts before executing them, especially when piping directly from remote sources. The alternative download method allows you to inspect the script contents before execution.

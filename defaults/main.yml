@@ -12,6 +12,7 @@ smallstep_ca_dns: "ca.internal.guru"
 smallstep_ca_port: "4443"
 smallstep_ca_provisioner: "admin"
 smallstep_ca_server_url: "https://{{ smallstep_ca_dns }}:{{ smallstep_ca_port }}"
+smallstep_ca_scripts_url: "http://{{ smallstep_ca_dns }}/scripts"
 
 smallstep_ca_validity: "87660h"
 smallstep_intermediate_ca_validity: "87660h"

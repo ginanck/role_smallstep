@@ -1,90 +1,27 @@
-# Detect architecture
-$ARCH = $env:PROCESSOR_ARCHITECTURE
-switch ($ARCH) {
-    "AMD64" { $ARCH_NAME = "amd64" }
-    "ARM64" { $ARCH_NAME = "arm64" }
-    default {
-        Write-Host "[!] Unsupported architecture: $ARCH" -ForegroundColor Red
-        exit 1
-    }
-}
-
 # Config
 $CA_CERT="root_ca.crt"
-$CA_URL = "{{ smallstep_ca_server_url }}"
-$FINGERPRINT = "{{ smallstep_ca_fingerprint }}"
-$CLI_VERSION = "{{ smallstep_cli_version }}"
-$CLI_ARCHIVE = "step_windows_${CLI_VERSION}_${ARCH_NAME}.zip"
-$CLI_URL = "{{ smallstep_base_url }}/cli/releases/download/v${CLI_VERSION}/${CLI_ARCHIVE}"
+$ROOTS_URL = "{{ smallstep_ca_server_url }}/roots.pem"
 
-Write-Host "[*] Detected architecture: $ARCH_NAME" -ForegroundColor Green
-Write-Host "[*] Bootstrapping from: $CA_URL" -ForegroundColor Green
-Write-Host "[*] Fingerprint: $FINGERPRINT" -ForegroundColor Green
+Write-Host "[*] Downloading root CA certificate..." -ForegroundColor Yellow
+Write-Host "[*] Downloading from: $ROOTS_URL" -ForegroundColor Yellow
 
-# Check and install step.exe
-if (-not (Get-Command step -ErrorAction SilentlyContinue)) {
-    Write-Host "[*] Installing step CLI..." -ForegroundColor Yellow
-    Write-Host "[*] Downloading: $CLI_URL" -ForegroundColor Yellow
-    
-    $TempZip = "$env:TEMP\$CLI_ARCHIVE"
-    $TempDir = "$env:TEMP\stepcli"
-    
-    try {
-        # Download the CLI
-        Invoke-WebRequest -Uri $CLI_URL -OutFile $TempZip -UseBasicParsing
-        
-        # Extract to temp directory
-        if (Test-Path $TempDir) {
-            Remove-Item $TempDir -Recurse -Force
-        }
-        Expand-Archive $TempZip -DestinationPath $TempDir -Force
-        
-        # Find and move step.exe to System32
-        $StepExe = Get-ChildItem -Path $TempDir -Name "step.exe" -Recurse | Select-Object -First 1
-        if ($StepExe) {
-            $StepPath = Join-Path $TempDir $StepExe.DirectoryName "step.exe"
-            Copy-Item $StepPath -Destination "C:\Windows\System32\" -Force
-            Write-Host "[*] Step CLI installed successfully" -ForegroundColor Green
-        } else {
-            throw "step.exe not found in downloaded archive"
-        }
-        
-        # Cleanup
-        Remove-Item $TempZip -Force -ErrorAction SilentlyContinue
-        Remove-Item $TempDir -Recurse -Force -ErrorAction SilentlyContinue
-        
-    } catch {
-        Write-Host "[!] Failed to install step CLI: $_" -ForegroundColor Red
-        exit 1
-    }
-} else {
-    Write-Host "[*] Step CLI already installed" -ForegroundColor Green
-}
-
-Write-Host "[*] Bootstrapping Smallstep CA..." -ForegroundColor Yellow
 try {
-    & step ca bootstrap --ca-url $CA_URL --fingerprint $FINGERPRINT --force --install
-    if ($LASTEXITCODE -ne 0) {
-        throw "Bootstrap failed with exit code $LASTEXITCODE"
-    }
+    # Download the root CA certificate to current directory
+    Invoke-WebRequest -Uri $ROOTS_URL -OutFile $CA_CERT -UseBasicParsing
+    Write-Host "[*] Certificate downloaded to: $CA_CERT" -ForegroundColor Green
+    
+    # Install CA to Windows Trusted Root store
+    Write-Host "[*] Installing CA to Windows Trusted Root store..." -ForegroundColor Yellow
+    Import-Certificate -FilePath $CA_CERT -CertStoreLocation Cert:\LocalMachine\Root | Out-Null
+    Write-Host "[*] CA certificate imported successfully" -ForegroundColor Green
+    
 } catch {
-    Write-Host "[!] Failed to bootstrap CA: $_" -ForegroundColor Red
+    Write-Host "[!] Failed to download or install CA certificate: $_" -ForegroundColor Red
     exit 1
 }
 
-$RootCA = "$env:USERPROFILE\.step\certs\$CA_CERT"
-
-Write-Host "[*] Installing CA to Windows Trusted Root store..." -ForegroundColor Yellow
-try {
-    if (Test-Path $RootCA) {
-        Import-Certificate -FilePath $RootCA -CertStoreLocation Cert:\LocalMachine\Root | Out-Null
-        Write-Host "[*] CA certificate imported successfully" -ForegroundColor Green
-    } else {
-        throw "Root CA certificate not found at $RootCA"
-    }
-} catch {
-    Write-Host "[!] Failed to import CA certificate: $_" -ForegroundColor Red
-    exit 1
-}
+Write-Host "[*] Cleaning up downloaded certificate file..." -ForegroundColor Yellow
+Remove-Item $CA_CERT -Force
 
 Write-Host "[✓] Done! CA installed and trusted." -ForegroundColor Green
+Write-Host "[*] Certificate file remains at: $CA_CERT" -ForegroundColor Yellow
