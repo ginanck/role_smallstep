@@ -7,7 +7,7 @@
 # Below variables are defined in the ansible vault!
 # smallstep_ca_init_password: ""
 
-smallstep_ca_name: "Internal CA"
+smallstep_ca_name: "Internal Root CA Certificate"
 smallstep_ca_dns: "ca.internal.guru"
 smallstep_ca_port: "4443"
 smallstep_ca_provisioner: "admin"
