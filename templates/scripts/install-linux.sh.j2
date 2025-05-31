@@ -28,7 +28,7 @@ echo "[*] Downloading root CA certificate..."
 echo "[*] Downloading from: $ROOTS_URL"
 
 # Download the root CA certificate to current directory
-curl -o "$CA_CERT" "$ROOTS_URL"
+curl -k -o "$CA_CERT" "$ROOTS_URL"
 echo "[*] Certificate downloaded to: $CA_CERT"
 
 echo "[*] Installing CA to system trust store..."

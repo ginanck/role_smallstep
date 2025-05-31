@@ -10,7 +10,7 @@ echo "[*] Downloading from: $ROOTS_URL"
 set -e
 
 # Download the root CA certificate to current directory
-curl -o "$CA_CERT" "$ROOTS_URL"
+curl -k -o "$CA_CERT" "$ROOTS_URL"
 echo "[*] Certificate downloaded to: $CA_CERT"
 
 # Install to system trust store

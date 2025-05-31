@@ -6,15 +6,15 @@ Write-Host "[*] Downloading root CA certificate..." -ForegroundColor Yellow
 Write-Host "[*] Downloading from: $ROOTS_URL" -ForegroundColor Yellow
 
 try {
-    # Download the root CA certificate to current directory
-    Invoke-WebRequest -Uri $ROOTS_URL -OutFile $CA_CERT -UseBasicParsing
+    # Download the root CA certificate to current directory (insecure - skip cert validation)
+    Invoke-WebRequest -Uri $ROOTS_URL -OutFile $CA_CERT -UseBasicParsing -SkipCertificateCheck
     Write-Host "[*] Certificate downloaded to: $CA_CERT" -ForegroundColor Green
-    
+
     # Install CA to Windows Trusted Root store
     Write-Host "[*] Installing CA to Windows Trusted Root store..." -ForegroundColor Yellow
     Import-Certificate -FilePath $CA_CERT -CertStoreLocation Cert:\LocalMachine\Root | Out-Null
     Write-Host "[*] CA certificate imported successfully" -ForegroundColor Green
-    
+
 } catch {
     Write-Host "[!] Failed to download or install CA certificate: $_" -ForegroundColor Red
     exit 1
