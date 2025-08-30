@@ -87,6 +87,7 @@
     cat "{{ smallstep_www_certs_dir }}/{{ item.name }}/{{ item.name }}.crt" \
         "{{ smallstep_bin_dir }}/ca/certs/intermediate_ca.crt" \
         "{{ smallstep_bin_dir }}/ca/certs/root_ca.crt" \
+        "{{ smallstep_www_certs_dir }}/{{ item.name }}/{{ item.name }}.key" \
         > "{{ smallstep_www_certs_dir }}/{{ item.name }}/{{ item.name }}-fullchain.crt"
   args:
     creates: "{{ smallstep_www_certs_dir }}/{{ item.name }}/{{ item.name }}-fullchain.crt"
