@@ -172,25 +172,14 @@
     cat "{{ smallstep_www_certs_dir }}/{{ item.name }}/{{ item.name }}.crt" \
         "{{ smallstep_bin_dir }}/ca/certs/intermediate_ca.crt" \
         "{{ smallstep_bin_dir }}/ca/certs/root_ca.crt" \
-        > "{{ smallstep_www_certs_dir }}/{{ item.name }}/{{ item.name }}-fullchain.crt"
+        "{{ smallstep_www_certs_dir }}/{{ item.name }}/{{ item.name }}.key" \
+        > "{{ smallstep_www_certs_dir }}/{{ item.name }}/{{ item.name }}-intermediate-fullchain.crt"
   loop: "{{ cert_renewal_status }}"
   loop_control:
     label: "{{ item.name }}"
   when:
     - item.needs_renewal | bool
     - intermediate_ca_stat_renewal.stat.exists | default(false)
-
-- name: Recreate fullchain certificates without intermediate for renewed certs
-  ansible.builtin.shell: |
-    cat "{{ smallstep_www_certs_dir }}/{{ item.name }}/{{ item.name }}.crt" \
-        "{{ smallstep_bin_dir }}/ca/certs/root_ca.crt" \
-        > "{{ smallstep_www_certs_dir }}/{{ item.name }}/{{ item.name }}-fullchain.crt"
-  loop: "{{ cert_renewal_status }}"
-  loop_control:
-    label: "{{ item.name }}"
-  when: 
-    - item.needs_renewal | bool
-    - not (intermediate_ca_stat_renewal.stat.exists | default(false))
 
 - name: Verify renewed certificates
   ansible.builtin.command:

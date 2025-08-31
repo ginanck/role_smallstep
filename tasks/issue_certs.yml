@@ -88,9 +88,9 @@
         "{{ smallstep_bin_dir }}/ca/certs/intermediate_ca.crt" \
         "{{ smallstep_bin_dir }}/ca/certs/root_ca.crt" \
         "{{ smallstep_www_certs_dir }}/{{ item.name }}/{{ item.name }}.key" \
-        > "{{ smallstep_www_certs_dir }}/{{ item.name }}/{{ item.name }}-fullchain.crt"
+        > "{{ smallstep_www_certs_dir }}/{{ item.name }}/{{ item.name }}-intermediate-fullchain.crt"
   args:
-    creates: "{{ smallstep_www_certs_dir }}/{{ item.name }}/{{ item.name }}-fullchain.crt"
+    creates: "{{ smallstep_www_certs_dir }}/{{ item.name }}/{{ item.name }}-intermediate-fullchain.crt"
   loop: "{{ smallstep_certificates }}"
   loop_control:
     label: "{{ item.name }}"
