@@ -52,16 +52,16 @@
 - name: Generate root CA certificate and key
   ansible.builtin.command:
     cmd: >
-      step certificate create "{{ smallstep_ca_name }}" 
-      "{{ smallstep_bin_dir }}/ca/certs/root_ca.crt" 
+      step certificate create "{{ smallstep_ca_name }}"
+      "{{ smallstep_bin_dir }}/ca/certs/root_ca.crt"
       "{{ smallstep_bin_dir }}/ca/secrets/root_ca_key"
-      --profile root-ca 
+      --profile root-ca
       --password-file "{{ smallstep_bin_dir }}/ca/password.txt"
       --not-after "{{ smallstep_ca_validity }}"
       --force
     creates: "{{ smallstep_bin_dir }}/ca/certs/root_ca.crt"
 
-- name: Generate intermediate CA certificate and key  
+- name: Generate intermediate CA certificate and key
   ansible.builtin.command:
     cmd: >
       step certificate create "{{ smallstep_ca_name }} Intermediate CA"
@@ -79,10 +79,10 @@
 - name: Generate provisioner JWK key pair
   ansible.builtin.command:
     cmd: >
-      step crypto jwk create 
+      step crypto jwk create
       "{{ smallstep_bin_dir }}/ca/secrets/{{ smallstep_ca_provisioner }}_pub.jwk"
       "{{ smallstep_bin_dir }}/ca/secrets/{{ smallstep_ca_provisioner }}_priv.jwk"
-      --kty EC --crv P-256 
+      --kty EC --crv P-256
       --password-file "{{ smallstep_bin_dir }}/ca/password.txt"
     creates: "{{ smallstep_bin_dir }}/ca/secrets/{{ smallstep_ca_provisioner }}_pub.jwk"
 
@@ -115,7 +115,7 @@
     mode: '0600'
     backup: yes
 
-- name: Generate defaults.json configuration  
+- name: Generate defaults.json configuration
   ansible.builtin.template:
     src: config/defaults.json.j2
     dest: "{{ smallstep_bin_dir }}/ca/config/defaults.json"

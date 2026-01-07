@@ -75,7 +75,7 @@
     name: "step-ca"
     path: "{{ smallstep_bin_dir }}/bin/step-ca"
     link: "{{ smallstep_link_path }}/step-ca"
-    priority: "{{ ansible_date_time.epoch | int }}"
+    priority: 100
     subcommands:
       - name: "step"
         path: "{{ smallstep_bin_dir }}/bin/step"

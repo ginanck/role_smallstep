@@ -97,7 +97,7 @@
   loop: "{{ cert_renewal_status }}"
   loop_control:
     label: "{{ item.name }}"
-  when: 
+  when:
     - item.needs_renewal | bool
   failed_when: false
 
@@ -162,7 +162,7 @@
   loop: "{{ cert_renewal_result.results }}"
   loop_control:
     label: "{{ item.item.name }}"
-  when: 
+  when:
     - item.item.needs_renewal | bool
     - item.rc != 0
   register: cert_generation_result
@@ -222,7 +222,7 @@
   loop: "{{ renewed_cert_info_result.results }}"
   loop_control:
     label: "{{ item.item.name }}"
-  when: 
+  when:
     - renewed_cert_info_result is defined
     - item.skipped is not defined
 
@@ -235,7 +235,7 @@
   loop: "{{ cert_renewal_status }}"
   loop_control:
     label: "{{ item.name }}"
-  when: 
+  when:
     - item.needs_renewal | bool
     - renewed_cert_info_result is defined
 
@@ -245,7 +245,7 @@
   loop: "{{ cert_renewal_status }}"
   loop_control:
     label: "{{ item.name }}"
-  when: 
+  when:
     - item.needs_renewal | bool
     - item.cert_item.service_name is defined
   notify: "restart {{ item.cert_item.service_name }}"
@@ -257,7 +257,7 @@
   loop: "{{ cert_renewal_status }}"
   loop_control:
     label: "{{ item.name }}"
-  when: 
+  when:
     - item.needs_renewal | bool
     - smallstep_cleanup_old_backups | default(true) | bool
   changed_when: false
