@@ -24,27 +24,71 @@ smallstep_cleanup_old_backups: true
 smallstep_max_tls_cert_duration: "87660h"
 smallstep_default_tls_cert_duration: "4380h"
 
-smallstep_certificates: []
-  # - name: "nginx-web"
-  #   common_name: "web.example.com"
-  #   san:
-  #     - "web.example.com"
-  #     - "www.example.com"
-  #     - "192.168.1.100"
-  #   validity: "8760h"
-  #   key_mode: "0600"
-  #   cert_mode: "0644"
-  #   key_type: "RSA"
-  #   key_size: 2048
+smallstep_certificates:
+  - name: "nginx-web"
+    common_name: "web.example.com"
+    san:
+      - "web.example.com"
+      - "www.example.com"
+      - "192.168.1.100"
+    validity: "8760h"
+    key_mode: "0600"
+    cert_mode: "0644"
+    key_type: "RSA"
+    key_size: 2048
 
-  # - name: "api-server"
-  #   common_name: "api.example.com"
-  #   san:
-  #     - "api.example.com"
-  #     - "api-internal.example.com"
-  #   validity: "8760h"
-  #   key_type: "EC"
-  #   key_curve: "P-256"
+  - name: "api-server"
+    common_name: "api.example.com"
+    san:
+      - "api.example.com"
+      - "api-internal.example.com"
+    validity: "8760h"
+    key_type: "EC"
+    key_curve: "P-256"
+
+smallstep_certificates_2:
+  - name: "nginx-web"
+    common_name: "web.example.com"
+    san:
+      - "web.example.com"
+      - "www.example.com"
+      - "192.168.1.100"
+    validity: "8760h"
+    key_mode: "0600"
+    cert_mode: "0644"
+    key_type: "RSA"
+    key_size: 2048
+
+  - name: "api-server"
+    common_name: "api.example.com"
+    san:
+      - "api.example.com"
+      - "api-internal.example.com"
+    validity: "8760h"
+    key_type: "EC"
+    key_curve: "P-256"
+
+smallstep_certificates_3:
+  - name: "nginx-web"
+    common_name: "web.example.com"
+    san:
+      - "web.example.com"
+      - "www.example.com"
+      - "192.168.1.100"
+    validity: "8760h"
+    key_mode: "0600"
+    cert_mode: "0644"
+    key_type: "RSA"
+    key_size: 2048
+
+  - name: "api-server"
+    common_name: "api.example.com"
+    san:
+      - "api.example.com"
+      - "api-internal.example.com"
+    validity: "8760h"
+    key_type: "EC"
+    key_curve: "P-256"
 
   # - name: "database"
   #   common_name: "db.example.com"

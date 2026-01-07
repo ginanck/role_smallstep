@@ -51,6 +51,15 @@ This role requires the following roles and collections:
     
   
 
+  
+    
+  
+
+
+
+**Roles:**
+
+- [role_base](https://github.com/ginanck/role_base.git) (version: master)
 
 
 
@@ -92,20 +101,100 @@ ansible-galaxy install -r meta/install_requirements.yml
 | [`smallstep_cleanup_old_backups`](defaults/main.yml#L22) | bool | `True` | None |
 | [`smallstep_max_tls_cert_duration`](defaults/main.yml#L24) | str | `87660h` | None |
 | [`smallstep_default_tls_cert_duration`](defaults/main.yml#L25) | str | `4380h` | None |
-| [`smallstep_certificates`](defaults/main.yml#L27) | list | `[]` | None |
-| [`smallstep_base_url`](defaults/main.yml#L68) | str | `https://github.com/smallstep` | None |
-| [`smallstep_bin_dir`](defaults/main.yml#L69) | str | `/opt/smallstep` | None |
-| [`smallstep_link_path`](defaults/main.yml#L70) | str | `/usr/local/bin` | None |
-| [`smallstep_www_dir`](defaults/main.yml#L72) | str | `{{ smallstep_bin_dir }}/www` | None |
-| [`smallstep_www_certs_dir`](defaults/main.yml#L73) | str | `{{ smallstep_www_dir }}/certs` | None |
-| [`smallstep_www_scripts_dir`](defaults/main.yml#L74) | str | `{{ smallstep_www_dir }}/scripts` | None |
-| [`smallstep_log_dir`](defaults/main.yml#L75) | str | `/var/log/smallstep` | None |
-| [`smallstep_ca_version`](defaults/main.yml#L77) | str | `0.28.3` | None |
-| [`smallstep_ca_archive`](defaults/main.yml#L78) | str | `step-ca_linux_{{ smallstep_ca_version }}_amd64.tar.gz` | None |
-| [`smallstep_ca_url`](defaults/main.yml#L79) | str | `{{ smallstep_base_url }}/certificates/releases/download/v{{ smallstep_ca_version }}/{{ smallstep_ca_archive }}` | None |
-| [`smallstep_cli_version`](defaults/main.yml#L82) | str | `0.28.6` | None |
-| [`smallstep_cli_archive`](defaults/main.yml#L83) | str | `step_linux_{{ smallstep_cli_version }}_amd64.tar.gz` | None |
-| [`smallstep_cli_url`](defaults/main.yml#L84) | str | `{{ smallstep_base_url }}/cli/releases/download/v{{ smallstep_cli_version }}/{{ smallstep_cli_archive }}` | None |
+| [`smallstep_certificates`](defaults/main.yml#L27) | list | See below | None |
+| [`smallstep_certificates_2`](defaults/main.yml#L49) | list | See below | None |
+| [`smallstep_certificates_3`](defaults/main.yml#L71) | list | See below | None |
+| [`smallstep_base_url`](defaults/main.yml#L112) | str | `https://github.com/smallstep` | None |
+| [`smallstep_bin_dir`](defaults/main.yml#L113) | str | `/opt/smallstep` | None |
+| [`smallstep_link_path`](defaults/main.yml#L114) | str | `/usr/local/bin` | None |
+| [`smallstep_www_dir`](defaults/main.yml#L116) | str | `{{ smallstep_bin_dir }}/www` | None |
+| [`smallstep_www_certs_dir`](defaults/main.yml#L117) | str | `{{ smallstep_www_dir }}/certs` | None |
+| [`smallstep_www_scripts_dir`](defaults/main.yml#L118) | str | `{{ smallstep_www_dir }}/scripts` | None |
+| [`smallstep_log_dir`](defaults/main.yml#L119) | str | `/var/log/smallstep` | None |
+| [`smallstep_ca_version`](defaults/main.yml#L121) | str | `0.28.3` | None |
+| [`smallstep_ca_archive`](defaults/main.yml#L122) | str | `step-ca_linux_{{ smallstep_ca_version }}_amd64.tar.gz` | None |
+| [`smallstep_ca_url`](defaults/main.yml#L123) | str | `{{ smallstep_base_url }}/certificates/releases/download/v{{ smallstep_ca_version }}/{{ smallstep_ca_archive }}` | None |
+| [`smallstep_cli_version`](defaults/main.yml#L126) | str | `0.28.6` | None |
+| [`smallstep_cli_archive`](defaults/main.yml#L127) | str | `step_linux_{{ smallstep_cli_version }}_amd64.tar.gz` | None |
+| [`smallstep_cli_url`](defaults/main.yml#L128) | str | `{{ smallstep_base_url }}/cli/releases/download/v{{ smallstep_cli_version }}/{{ smallstep_cli_archive }}` | None |
+
+#### `smallstep_certificates`
+
+```yaml
+- name: nginx-web
+  common_name: web.example.com
+  san: 
+    - web.example.com
+    - www.example.com
+    - 192.168.1.100
+  validity: 8760h
+  key_mode: 0600
+  cert_mode: 0644
+  key_type: RSA
+  key_size: 2048
+
+- name: api-server
+  common_name: api.example.com
+  san: 
+    - api.example.com
+    - api-internal.example.com
+  validity: 8760h
+  key_type: EC
+  key_curve: P-256
+
+```
+
+#### `smallstep_certificates_2`
+
+```yaml
+- name: nginx-web
+  common_name: web.example.com
+  san: 
+    - web.example.com
+    - www.example.com
+    - 192.168.1.100
+  validity: 8760h
+  key_mode: 0600
+  cert_mode: 0644
+  key_type: RSA
+  key_size: 2048
+
+- name: api-server
+  common_name: api.example.com
+  san: 
+    - api.example.com
+    - api-internal.example.com
+  validity: 8760h
+  key_type: EC
+  key_curve: P-256
+
+```
+
+#### `smallstep_certificates_3`
+
+```yaml
+- name: nginx-web
+  common_name: web.example.com
+  san: 
+    - web.example.com
+    - www.example.com
+    - 192.168.1.100
+  validity: 8760h
+  key_mode: 0600
+  cert_mode: 0644
+  key_type: RSA
+  key_size: 2048
+
+- name: api-server
+  common_name: api.example.com
+  san: 
+    - api.example.com
+    - api-internal.example.com
+  validity: 8760h
+  key_type: EC
+  key_curve: P-256
+
+```
 
 
 
