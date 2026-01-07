@@ -2,7 +2,7 @@
 # Ansible Role: role_smallstep
 
 
-your role description
+role_smallstep to configure base settings
 
 
 ## Table of Contents
@@ -20,17 +20,52 @@ your role description
 
 
 
-- Ansible >= 2.1
+- Ansible >= 2.9
 
+
+- Supported platforms:
+  - Ubuntu (jammy, noble)
+  - Debian (bullseye, bookworm)
+  - AlmaLinux (9, 10)
+  - RockyLinux (9.0, 10)
 
 
 
 ## Dependencies
 
 
-No dependencies defined.
+This role requires the following roles and collections:
 
-To install external requirements:
+
+
+
+  
+    
+  
+
+  
+    
+  
+
+  
+    
+  
+
+
+
+
+
+**Collections:**
+
+- `community.docker` (>= 4.8.1)
+
+- `community.general` (>= 6.6.1)
+
+- `ansible.posix` (>= 1.5.4)
+
+
+
+To install all dependencies:
 ```bash
 ansible-galaxy install -r meta/install_requirements.yml
 ```
@@ -230,11 +265,9 @@ license (GPL-2.0-or-later, MIT, etc)
 ## Author Information
 
 
-**Author:** your name
+**Author:** gkorkmaz
 
 
-
-**Company:** your company (optional)
 
 
 **GitHub:** [gkorkmaz](https://github.com/gkorkmaz)
