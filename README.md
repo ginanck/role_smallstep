@@ -82,39 +82,41 @@ ansible-galaxy install -r meta/install_requirements.yml
 
 ## Role Variables
 
+**These are static variables with lower priority**
 
 
-### File: `defaults/main.yml`
 
-| Variable | Type | Default Value | Description |
-|----------|------|---------------|-------------|
-| [`smallstep_ca_name`](defaults/main.yml#L10) | str | `Internal Root CA Certificate` | None |
-| [`smallstep_ca_dns`](defaults/main.yml#L11) | str | `ca.internal.guru` | None |
-| [`smallstep_ca_port`](defaults/main.yml#L12) | str | `4443` | None |
-| [`smallstep_ca_provisioner`](defaults/main.yml#L13) | str | `admin` | None |
-| [`smallstep_ca_server_url`](defaults/main.yml#L14) | str | `https://{{ smallstep_ca_dns }}:{{ smallstep_ca_port }}` | None |
-| [`smallstep_ca_scripts_url`](defaults/main.yml#L15) | str | `http://{{ smallstep_ca_dns }}/scripts` | None |
-| [`smallstep_ca_validity`](defaults/main.yml#L17) | str | `87660h` | None |
-| [`smallstep_intermediate_ca_validity`](defaults/main.yml#L18) | str | `87660h` | None |
-| [`smallstep_enable_auto_renewal`](defaults/main.yml#L20) | bool | `False` | None |
-| [`smallstep_renewal_threshold`](defaults/main.yml#L21) | int | `30` | None |
-| [`smallstep_cleanup_old_backups`](defaults/main.yml#L22) | bool | `True` | None |
-| [`smallstep_max_tls_cert_duration`](defaults/main.yml#L24) | str | `87660h` | None |
-| [`smallstep_default_tls_cert_duration`](defaults/main.yml#L25) | str | `4380h` | None |
-| [`smallstep_certificates`](defaults/main.yml#L27) | list | `[]` | None |
-| [`smallstep_base_url`](defaults/main.yml#L68) | str | `https://github.com/smallstep` | None |
-| [`smallstep_bin_dir`](defaults/main.yml#L69) | str | `/opt/smallstep` | None |
-| [`smallstep_link_path`](defaults/main.yml#L70) | str | `/usr/local/bin` | None |
-| [`smallstep_www_dir`](defaults/main.yml#L72) | str | `{{ smallstep_bin_dir }}/www` | None |
-| [`smallstep_www_certs_dir`](defaults/main.yml#L73) | str | `{{ smallstep_www_dir }}/certs` | None |
-| [`smallstep_www_scripts_dir`](defaults/main.yml#L74) | str | `{{ smallstep_www_dir }}/scripts` | None |
-| [`smallstep_log_dir`](defaults/main.yml#L75) | str | `/var/log/smallstep` | None |
-| [`smallstep_ca_version`](defaults/main.yml#L77) | str | `0.28.3` | None |
-| [`smallstep_ca_archive`](defaults/main.yml#L78) | str | `step-ca_linux_{{ smallstep_ca_version }}_amd64.tar.gz` | None |
-| [`smallstep_ca_url`](defaults/main.yml#L79) | str | `{{ smallstep_base_url }}/certificates/releases/download/v{{ smallstep_ca_version }}/{{ smallstep_ca_archive }}` | None |
-| [`smallstep_cli_version`](defaults/main.yml#L82) | str | `0.28.6` | None |
-| [`smallstep_cli_archive`](defaults/main.yml#L83) | str | `step_linux_{{ smallstep_cli_version }}_amd64.tar.gz` | None |
-| [`smallstep_cli_url`](defaults/main.yml#L84) | str | `{{ smallstep_base_url }}/cli/releases/download/v{{ smallstep_cli_version }}/{{ smallstep_cli_archive }}` | None |
+#### File: defaults/main.yml
+
+| Var | Type | Value |
+|-----|------|-------|
+| [smallstep_base_url](defaults/main.yml#L68) | str | `https://github.com/smallstep` |
+| [smallstep_bin_dir](defaults/main.yml#L69) | str | `/opt/smallstep` |
+| [smallstep_ca_archive](defaults/main.yml#L78) | str | `step-ca_linux_{{ smallstep_ca_version }}_amd64.tar.gz` |
+| [smallstep_ca_dns](defaults/main.yml#L11) | str | `ca.internal.guru` |
+| [smallstep_ca_name](defaults/main.yml#L10) | str | `Internal Root CA Certificate` |
+| [smallstep_ca_port](defaults/main.yml#L12) | str | `4443` |
+| [smallstep_ca_provisioner](defaults/main.yml#L13) | str | `admin` |
+| [smallstep_ca_scripts_url](defaults/main.yml#L15) | str | `http://{{ smallstep_ca_dns }}/scripts` |
+| [smallstep_ca_server_url](defaults/main.yml#L14) | str | `https://{{ smallstep_ca_dns }}:{{ smallstep_ca_port }}` |
+| [smallstep_ca_url](defaults/main.yml#L79) | str | `{{ smallstep_base_url }}/certificates/releases/download/v{{ smallstep_ca_version }}/{{ smallstep_ca_archive }}` |
+| [smallstep_ca_validity](defaults/main.yml#L17) | str | `87660h` |
+| [smallstep_ca_version](defaults/main.yml#L77) | str | `0.28.3` |
+| [smallstep_certificates](defaults/main.yml#L27) | list |  |
+| [smallstep_cleanup_old_backups](defaults/main.yml#L22) | bool | `True` |
+| [smallstep_cli_archive](defaults/main.yml#L83) | str | `step_linux_{{ smallstep_cli_version }}_amd64.tar.gz` |
+| [smallstep_cli_url](defaults/main.yml#L84) | str | `{{ smallstep_base_url }}/cli/releases/download/v{{ smallstep_cli_version }}/{{ smallstep_cli_archive }}` |
+| [smallstep_cli_version](defaults/main.yml#L82) | str | `0.28.6` |
+| [smallstep_default_tls_cert_duration](defaults/main.yml#L25) | str | `4380h` |
+| [smallstep_enable_auto_renewal](defaults/main.yml#L20) | bool |  |
+| [smallstep_intermediate_ca_validity](defaults/main.yml#L18) | str | `87660h` |
+| [smallstep_link_path](defaults/main.yml#L70) | str | `/usr/local/bin` |
+| [smallstep_log_dir](defaults/main.yml#L75) | str | `/var/log/smallstep` |
+| [smallstep_max_tls_cert_duration](defaults/main.yml#L24) | str | `87660h` |
+| [smallstep_renewal_threshold](defaults/main.yml#L21) | int | `30` |
+| [smallstep_www_certs_dir](defaults/main.yml#L73) | str | `{{ smallstep_www_dir }}/certs` |
+| [smallstep_www_dir](defaults/main.yml#L72) | str | `{{ smallstep_bin_dir }}/www` |
+| [smallstep_www_scripts_dir](defaults/main.yml#L74) | str | `{{ smallstep_www_dir }}/scripts` |
 
 
 
@@ -247,41 +249,6 @@ This role performs the following tasks:
         smallstep_ca_port: 4443
 
 ```
-
-## Documentation Maintenance
-
-### Updating Dependencies
-
-1. **Update** `meta/main.yml`:
-   ```yaml
-   documented_requirements:
-     - src: https://github.com/user/role.git
-       version: master
-     - name: collection.name
-       version: 1.0.0
-   ```
-
-2. **Sync** `meta/install_requirements.yml` with the same requirements
-
-3. **Regenerate** documentation:
-   ```bash
-   pre-commit run --all-files
-   ```
-
-### Template Updates
-
-- Edit `.docsible_template.md` for structure changes
-- Test with: `docsible --role . --md-template .docsible_template.md -nob -com -tl`
-- Commit both template and generated README.md
-
-### Quick Checklist
-
-When updating dependencies:
-- [ ] Add to `meta/main.yml` → `documented_requirements`
-- [ ] Add to `meta/install_requirements.yml`
-- [ ] Run `pre-commit run --all-files`
-- [ ] Verify generated README.md
-- [ ] Commit all changes
 
 ## License
 
