@@ -83,4 +83,3 @@ smallstep_cli_version: "0.28.6"
 smallstep_cli_archive: "step_linux_{{ smallstep_cli_version }}_amd64.tar.gz"
 smallstep_cli_url: "{{ smallstep_base_url }}/cli/releases/download/v{{ smallstep_cli_version }}/{{ smallstep_cli_archive }}"
 # https://github.com/smallstep/cli/releases/download/v0.28.6/step_linux_0.28.6_amd64.tar.gz
-
