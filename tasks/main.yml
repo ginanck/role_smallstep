@@ -7,7 +7,11 @@
 - name: Initialize smallstep ca-server
   ansible.builtin.include_tasks: init.yml
 
-- name: Generate certificates
+- name: Restore a CA backup
+  ansible.builtin.include_tasks: restore.yml
+  when: smallstep_restore_archive | default('') | length > 0
+
+- name: Generate client scripts
   ansible.builtin.include_tasks: generate_scripts.yml
 
 - name: Issue certificates
@@ -17,3 +21,7 @@
 - name: Renew certificates
   ansible.builtin.include_tasks: renew_certs.yml
   when: smallstep_enable_auto_renewal is defined and smallstep_enable_auto_renewal | bool
+
+- name: Back up the CA database, secrets and configuration
+  ansible.builtin.include_tasks: backup.yml
+  when: smallstep_backup_enabled | bool

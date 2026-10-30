@@ -1,0 +1,38 @@
+---
+
+# Restores a backup archive produced by backup.yml. The CA is stopped while
+# the archive is unpacked and started again afterwards.
+
+- name: Assert that a backup archive is provided for the restore
+  ansible.builtin.assert:
+    that:
+      - smallstep_restore_archive | length > 0
+    fail_msg: >-
+      smallstep_restore_archive must point to an archive created by this role.
+    quiet: true
+
+- name: Stop the CA while restoring
+  ansible.builtin.systemd:
+    name: smallstep
+    state: stopped
+
+- name: Restore the CA database, secrets and configuration
+  ansible.builtin.unarchive:
+    src: "{{ smallstep_restore_archive }}"
+    dest: /
+    remote_src: true
+    owner: "{{ smallstep_service_user }}"
+    group: "{{ smallstep_service_group }}"
+
+- name: Restore the configuration ownership
+  ansible.builtin.file:
+    path: "{{ smallstep_ca_config_dir }}/ca.json"
+    owner: "{{ smallstep_service_user }}"
+    group: "{{ smallstep_service_group }}"
+    mode: "0600"
+
+- name: Start the CA after restoring
+  ansible.builtin.systemd:
+    name: smallstep
+    state: started
+    daemon_reload: true

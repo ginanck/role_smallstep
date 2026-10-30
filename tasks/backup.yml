@@ -1,0 +1,50 @@
+---
+
+# Backs up the CA database, secrets and configuration into one archive per day
+# and prunes archives older than smallstep_backup_retention days.
+
+- name: Create the backup directory
+  ansible.builtin.file:
+    path: "{{ smallstep_backup_dir }}"
+    state: directory
+    owner: "{{ smallstep_service_user }}"
+    group: "{{ smallstep_service_group }}"
+    mode: "0700"
+
+- name: Set the backup archive path
+  ansible.builtin.set_fact:
+    smallstep_backup_archive: "{{ smallstep_backup_dir }}/smallstep-ca-{{ ansible_date_time.date }}.tar.gz"
+
+- name: Check whether today's backup already exists
+  ansible.builtin.stat:
+    path: "{{ smallstep_backup_archive }}"
+  register: smallstep_backup_stat
+
+- name: Archive the database, secrets and configuration
+  community.general.archive:
+    path:
+      - "{{ smallstep_ca_db_dir }}"
+      - "{{ smallstep_ca_secrets_dir }}"
+      - "{{ smallstep_ca_config_dir }}"
+    dest: "{{ smallstep_backup_archive }}"
+    format: gz
+    owner: "{{ smallstep_service_user }}"
+    group: "{{ smallstep_service_group }}"
+    mode: "0600"
+  when: not smallstep_backup_stat.stat.exists
+
+- name: Find backups older than the retention period
+  ansible.builtin.find:
+    paths: "{{ smallstep_backup_dir }}"
+    patterns: "smallstep-ca-*.tar.gz"
+    age: "{{ smallstep_backup_retention }}d"
+    age_stamp: mtime
+  register: smallstep_expired_backups
+
+- name: Remove expired backups
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: "{{ smallstep_expired_backups.files }}"
+  loop_control:
+    label: "{{ item.path }}"

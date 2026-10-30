@@ -1,21 +1,31 @@
 ---
 # defaults file for role_smallstep
 
-# https://github.com/smallstep/certificates
-# https://github.com/smallstep/cli
+# https://github.com/smallstep/certificates
+# https://github.com/smallstep/cli
 
-# Below variables are defined in the ansible vault!
-# smallstep_ca_init_password: ""
+# smallstep_ca_password is supplied from the ansible vault and is required.
+# It is deliberately not defaulted here: the role asserts that the vault
+# provides it before it writes any file.
 
 smallstep_ca_name: "Internal Root CA Certificate"
 smallstep_ca_dns: "ca.internal.guru"
 smallstep_ca_port: "4443"
 smallstep_ca_provisioner: "admin"
 smallstep_ca_server_url: "https://{{ smallstep_ca_dns }}:{{ smallstep_ca_port }}"
-smallstep_ca_scripts_url: "http://{{ smallstep_ca_dns }}/scripts"
+smallstep_ca_scripts_url: "https://{{ smallstep_ca_dns }}/scripts"
 
 smallstep_ca_validity: "87660h"
 smallstep_intermediate_ca_validity: "87660h"
+
+# The CA runs as a dedicated unprivileged account.
+smallstep_service_user: "step"
+smallstep_service_group: "step"
+
+# ACME provisioner served by this CA for certbot/caddy style clients.
+smallstep_acme_enabled: true
+smallstep_acme_provisioner_name: "acme"
+smallstep_acme_require_eab: false
 
 smallstep_enable_auto_renewal: false
 smallstep_renewal_threshold: 30
@@ -69,15 +79,30 @@ smallstep_base_url: "https://github.com/smallstep"
 smallstep_bin_dir: "/opt/smallstep"
 smallstep_link_path: "/usr/local/bin"
 
+smallstep_ca_dir: "{{ smallstep_bin_dir }}/ca"
+smallstep_ca_config_dir: "{{ smallstep_ca_dir }}/config"
+smallstep_ca_certs_dir: "{{ smallstep_ca_dir }}/certs"
+smallstep_ca_secrets_dir: "{{ smallstep_ca_dir }}/secrets"
+smallstep_ca_db_dir: "{{ smallstep_ca_dir }}/db"
+smallstep_ca_password_file: "{{ smallstep_ca_secrets_dir }}/password"
+# Private keys of issued certificates never live below the distribution dir.
+smallstep_issued_dir: "{{ smallstep_ca_dir }}/issued"
+
 smallstep_www_dir: "{{ smallstep_bin_dir }}/www"
 smallstep_www_certs_dir: "{{ smallstep_www_dir }}/certs"
 smallstep_www_scripts_dir: "{{ smallstep_www_dir }}/scripts"
-smallstep_log_dir: "/var/log/smallstep"
+
+# Backup of database, secrets and configuration with day based retention.
+smallstep_backup_enabled: true
+smallstep_backup_dir: "{{ smallstep_bin_dir }}/backup"
+smallstep_backup_retention: 7
+# Set to an archive path to restore it on the next run.
+smallstep_restore_archive: ""
 
 smallstep_ca_version: "0.28.3"
 smallstep_ca_archive: "step-ca_linux_{{ smallstep_ca_version }}_amd64.tar.gz"
 smallstep_ca_url: "{{ smallstep_base_url }}/certificates/releases/download/v{{ smallstep_ca_version }}/{{ smallstep_ca_archive }}"
-# https://github.com/smallstep/certificates/releases/download/v0.28.3/step-ca_linux_0.28.3_amd64.tar.gz
+# https://github.com/smallstep/certificates/releases/download/v0.28.3/step-ca_linux_0.28.3_amd64.tar.gz
 
 smallstep_cli_version: "0.28.6"
 smallstep_cli_archive: "step_linux_{{ smallstep_cli_version }}_amd64.tar.gz"

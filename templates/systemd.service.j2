@@ -1,15 +1,41 @@
 # {{ ansible_managed }}
 [Unit]
 Description=Smallstep Certificate Authority
-After=network.target
+Documentation=https://smallstep.com/docs/step-ca
+After=network-online.target
+Wants=network-online.target
 
 [Service]
-ExecStart={{ smallstep_bin_dir }}/start-ca.sh
-WorkingDirectory={{ smallstep_bin_dir }}/ca
-User=root
-Group=root
+Type=simple
+User={{ smallstep_service_user }}
+Group={{ smallstep_service_group }}
+Environment=STEPPATH={{ smallstep_ca_dir }}
+WorkingDirectory={{ smallstep_ca_dir }}
+ExecStart={{ smallstep_bin_dir }}/bin/step-ca {{ smallstep_ca_config_dir }}/ca.json --password-file {{ smallstep_ca_password_file }}
 Restart=on-failure
-Environment=STEP_CA_DIR={{ smallstep_bin_dir }}/ca
+RestartSec=5s
+UMask=0077
+
+# Hardening
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+RemoveIPC=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+ReadWritePaths={{ smallstep_ca_dir }}
 
 [Install]
 WantedBy=multi-user.target

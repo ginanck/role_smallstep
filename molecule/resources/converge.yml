@@ -2,5 +2,26 @@
 - name: Converge
   hosts: all
   become: true
+  vars:
+    # Test fixture only: the role requires a vault supplied CA password.
+    smallstep_ca_password: "molecule-ca-password"
+    smallstep_backup_retention: 7
+    smallstep_certificates:
+      - name: molecule
+        common_name: molecule.internal
+        san:
+          - molecule.internal
+        validity: "24h"
+  pre_tasks:
+    - name: Map the CA and ACME test names to the loopback address
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        regexp: '^127\.0\.0\.1\s+{{ item }}\s*$'
+        line: "127.0.0.1 {{ item }}"
+        state: present
+        unsafe_writes: true
+      loop:
+        - ca.internal.guru
+        - acme-test.internal
   roles:
     - role_smallstep

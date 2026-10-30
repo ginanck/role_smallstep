@@ -1,64 +1,67 @@
 ---
 
-# - name: Wait for CA to be ready
-#   ansible.builtin.wait_for:
-#     port: "{{ smallstep_ca_port }}"
-#     host: "{{ ansible_default_ipv4.address }}"
-#     delay: 5
-#     timeout: 60
-#   when: smallstep_certificates is defined
-
-- name: Create certificate directories
+- name: Create the certificate distribution directories
   ansible.builtin.file:
     path: "{{ smallstep_www_certs_dir }}/{{ item.name }}"
     state: directory
-    owner: "{{ item.owner | default('root') }}"
-    group: "{{ item.group | default('root') }}"
-    mode: "{{ item.mode | default('0755') }}"
+    owner: root
+    group: root
+    mode: "{{ item.cert_dir_mode | default('0755') }}"
   loop: "{{ smallstep_certificates }}"
   loop_control:
     label: "{{ item.name }}"
 
-- name: Get CA fingerprint
+- name: Create the private key directories outside the distribution tree
+  ansible.builtin.file:
+    path: "{{ smallstep_issued_dir }}/{{ item.name }}"
+    state: directory
+    owner: "{{ item.owner | default('root') }}"
+    group: "{{ item.group | default('root') }}"
+    mode: "{{ item.key_dir_mode | default('0700') }}"
+  loop: "{{ smallstep_certificates }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Get the CA fingerprint
   ansible.builtin.command:
-    cmd: step certificate fingerprint "{{ smallstep_bin_dir }}/ca/certs/root_ca.crt"
+    cmd: "{{ smallstep_bin_dir }}/bin/step certificate fingerprint {{ smallstep_ca_certs_dir }}/root_ca.crt"
   register: ca_fingerprint_result
   changed_when: false
   environment:
-    STEPPATH: "{{ smallstep_bin_dir }}/ca"
+    STEPPATH: "{{ smallstep_ca_dir }}"
 
-- name: Set CA fingerprint fact
+- name: Set the CA fingerprint fact
   ansible.builtin.set_fact:
     smallstep_ca_fingerprint: "{{ ca_fingerprint_result.stdout.strip() }}"
 
-- name: Check if bootstrap already exists
+- name: Check if the client bootstrap already exists
   ansible.builtin.stat:
-    path: "{{ smallstep_bin_dir }}/ca/config/defaults.json"
+    path: "{{ smallstep_ca_config_dir }}/defaults.json"
   register: bootstrap_config
 
-- name: Bootstrap step client with CA fingerprint
+- name: Bootstrap the step client with the CA fingerprint
   ansible.builtin.command:
     cmd: >
-      step ca bootstrap
+      {{ smallstep_bin_dir }}/bin/step ca bootstrap
       --ca-url "{{ smallstep_ca_server_url }}"
       --fingerprint "{{ smallstep_ca_fingerprint }}"
       --force
   environment:
-    STEPPATH: "{{ smallstep_bin_dir }}/ca"
+    STEPPATH: "{{ smallstep_ca_dir }}"
   run_once: true
   when: not bootstrap_config.stat.exists
 
-- name: Issue certificates using step ca certificate command
+- name: Issue certificates using the step ca certificate command
   ansible.builtin.command:
     cmd: >
-      step ca certificate
+      {{ smallstep_bin_dir }}/bin/step ca certificate
       "{{ item.common_name }}"
       "{{ smallstep_www_certs_dir }}/{{ item.name }}/{{ item.name }}.crt"
-      "{{ smallstep_www_certs_dir }}/{{ item.name }}/{{ item.name }}.key"
-      --provisioner "{{ smallstep_ca_provisioner }}"
-      --provisioner-password-file "{{ smallstep_bin_dir }}/ca/password.txt"
+      "{{ smallstep_issued_dir }}/{{ item.name }}/{{ item.name }}.key"
+      --provisioner "{{ item.provisioner | default(smallstep_ca_provisioner) }}"
+      --provisioner-password-file "{{ smallstep_ca_password_file }}"
       --ca-url "{{ smallstep_ca_server_url }}"
-      --root "{{ smallstep_bin_dir }}/ca/certs/root_ca.crt"
+      --root "{{ smallstep_ca_certs_dir }}/root_ca.crt"
       {% if item.san is defined and item.san | length > 0 %}
       {% for san_entry in item.san %}
       --san "{{ san_entry }}"
@@ -77,32 +80,51 @@
       --force
     creates: "{{ smallstep_www_certs_dir }}/{{ item.name }}/{{ item.name }}.crt"
   environment:
-    STEPPATH: "{{ smallstep_bin_dir }}/ca"
+    STEPPATH: "{{ smallstep_ca_dir }}"
   loop: "{{ smallstep_certificates }}"
   loop_control:
     label: "{{ item.name }}"
 
-- name: Create fullchain certificates (with intermediate)
+- name: Restrict issued private keys
+  ansible.builtin.file:
+    path: "{{ smallstep_issued_dir }}/{{ item.name }}/{{ item.name }}.key"
+    owner: "{{ item.owner | default('root') }}"
+    group: "{{ item.group | default('root') }}"
+    mode: "{{ item.key_mode | default('0600') }}"
+  loop: "{{ smallstep_certificates }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Create fullchain certificates (certificate, intermediate and root only)
   ansible.builtin.shell: |
     cat "{{ smallstep_www_certs_dir }}/{{ item.name }}/{{ item.name }}.crt" \
-        "{{ smallstep_bin_dir }}/ca/certs/intermediate_ca.crt" \
-        "{{ smallstep_bin_dir }}/ca/certs/root_ca.crt" \
-        "{{ smallstep_www_certs_dir }}/{{ item.name }}/{{ item.name }}.key" \
-        > "{{ smallstep_www_certs_dir }}/{{ item.name }}/{{ item.name }}-intermediate-fullchain.crt"
+        "{{ smallstep_ca_certs_dir }}/intermediate_ca.crt" \
+        "{{ smallstep_ca_certs_dir }}/root_ca.crt" \
+        > "{{ smallstep_www_certs_dir }}/{{ item.name }}/{{ item.name }}-fullchain.crt"
   args:
-    creates: "{{ smallstep_www_certs_dir }}/{{ item.name }}/{{ item.name }}-intermediate-fullchain.crt"
+    creates: "{{ smallstep_www_certs_dir }}/{{ item.name }}/{{ item.name }}-fullchain.crt"
   loop: "{{ smallstep_certificates }}"
   loop_control:
     label: "{{ item.name }}"
 
-- name: Verify issued certificates
+- name: Publish the certificates and chains as readable files
+  ansible.builtin.file:
+    path: "{{ smallstep_www_certs_dir }}/{{ item.0.name }}/{{ item.0.name }}{{ item.1 }}"
+    owner: root
+    group: root
+    mode: "{{ item.0.cert_mode | default('0644') }}"
+  loop: "{{ smallstep_certificates | product(['.crt', '-fullchain.crt']) | list }}"
+  loop_control:
+    label: "{{ item.0.name }}{{ item.1 }}"
+
+- name: Verify the issued certificates
   ansible.builtin.command:
     cmd: >
-      step certificate verify
+      {{ smallstep_bin_dir }}/bin/step certificate verify
       "{{ smallstep_www_certs_dir }}/{{ item.name }}/{{ item.name }}.crt"
-      --roots "{{ smallstep_bin_dir }}/ca/certs/root_ca.crt"
+      --roots "{{ smallstep_ca_certs_dir }}/root_ca.crt"
   environment:
-    STEPPATH: "{{ smallstep_bin_dir }}/ca"
+    STEPPATH: "{{ smallstep_ca_dir }}"
   loop: "{{ smallstep_certificates }}"
   loop_control:
     label: "{{ item.name }}"
@@ -112,7 +134,7 @@
 - name: Get certificate information
   ansible.builtin.command:
     cmd: >
-      step certificate inspect
+      {{ smallstep_bin_dir }}/bin/step certificate inspect
       "{{ smallstep_www_certs_dir }}/{{ item.name }}/{{ item.name }}.crt"
       --format json
   loop: "{{ smallstep_certificates }}"
@@ -121,12 +143,12 @@
   register: cert_info_result
   changed_when: false
 
-- name: Create certificate info file
+- name: Create the certificate info file
   ansible.builtin.template:
     src: info/cert_info.txt.j2
     dest: "{{ smallstep_www_certs_dir }}/{{ item.item.name }}/cert_info.txt"
-    owner: "{{ item.item.owner | default('root') }}"
-    group: "{{ item.item.group | default('root') }}"
+    owner: root
+    group: root
     mode: "0644"
   vars:
     cert_item: "{{ item.item }}"

@@ -1,6 +1,21 @@
 ---
 
-- name: Create smallstep ca-server dir
+- name: Create the smallstep service group
+  ansible.builtin.group:
+    name: "{{ smallstep_service_group }}"
+    system: true
+
+- name: Create the smallstep service account
+  ansible.builtin.user:
+    name: "{{ smallstep_service_user }}"
+    group: "{{ smallstep_service_group }}"
+    system: true
+    shell: /sbin/nologin
+    home: "/var/lib/smallstep"
+    create_home: false
+    comment: "step-ca service account"
+
+- name: Create the smallstep binary directories
   ansible.builtin.file:
     path: "{{ item }}"
     state: directory
@@ -9,18 +24,37 @@
     mode: '0755'
   loop:
     - "{{ smallstep_bin_dir }}"
-    - "{{ smallstep_bin_dir }}/ca/certs"
-    - "{{ smallstep_bin_dir }}/ca/config"
-    - "{{ smallstep_bin_dir }}/ca/secrets"
     - "{{ smallstep_bin_dir }}/bin"
     - "{{ smallstep_bin_dir }}/archive/ca"
     - "{{ smallstep_bin_dir }}/archive/cli"
     - "{{ smallstep_www_dir }}"
     - "{{ smallstep_www_certs_dir }}"
     - "{{ smallstep_www_scripts_dir }}"
-    - "{{ smallstep_log_dir }}"
   loop_control:
     label: "{{ item }}"
+
+- name: Create the smallstep CA directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ smallstep_service_user }}"
+    group: "{{ smallstep_service_group }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - path: "{{ smallstep_ca_dir }}"
+      mode: '0750'
+    - path: "{{ smallstep_ca_config_dir }}"
+      mode: '0750'
+    - path: "{{ smallstep_ca_certs_dir }}"
+      mode: '0755'
+    - path: "{{ smallstep_ca_secrets_dir }}"
+      mode: '0700'
+    - path: "{{ smallstep_ca_db_dir }}"
+      mode: '0700'
+    - path: "{{ smallstep_issued_dir }}"
+      mode: '0700'
+  loop_control:
+    label: "{{ item.path }}"
 
 - name: Download step-ca binary
   ansible.builtin.get_url:

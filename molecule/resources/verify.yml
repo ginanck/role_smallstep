@@ -1,8 +1,331 @@
 ---
 - name: Verify
   hosts: all
-  gather_facts: false
+  become: true
+  gather_facts: true
+  vars:
+    # Test fixture only: the role requires a vault supplied CA password.
+    smallstep_ca_password: "molecule-ca-password"
+    smallstep_backup_retention: 7
   tasks:
-    - name: Example assertion
+    # AC-1: no default CA password and no legacy password file
+    - name: test_ac1_read_role_defaults
+      ansible.builtin.set_fact:
+        ac1_defaults: "{{ lookup('file', (lookup('env', 'MOLECULE_PROJECT_DIRECTORY')) ~ '/defaults/main.yml') }}"
+
+    - name: test_ac1_assert_no_default_ca_password
       ansible.builtin.assert:
-        that: true
+        that:
+          - "'smallstep_ca_init_password' not in ac1_defaults"
+          - "'changeme' not in ac1_defaults"
+          - "'smallstep_ca_password:' not in ac1_defaults"
+        fail_msg: "the role must not ship a default CA password"
+
+    - name: test_ac1_stat_legacy_password_file
+      ansible.builtin.stat:
+        path: /opt/smallstep/ca/password.txt
+      register: ac1_legacy_password_file
+
+    - name: test_ac1_assert_no_legacy_password_file
+      ansible.builtin.assert:
+        that:
+          - not ac1_legacy_password_file.stat.exists
+        fail_msg: "no world readable password.txt may exist below /opt/smallstep"
+
+    - name: test_ac1_stat_password_file
+      ansible.builtin.stat:
+        path: /opt/smallstep/ca/secrets/password
+      register: ac1_password_file
+
+    - name: test_ac1_assert_password_file_mode
+      ansible.builtin.assert:
+        that:
+          - ac1_password_file.stat.exists
+          - ac1_password_file.stat.mode == '0600'
+          - ac1_password_file.stat.pw_name == 'step'
+        fail_msg: "the CA password file must be 0600 and owned by the service account"
+
+    - name: test_ac1_role_requires_the_vault_password
+      block:
+        - name: test_ac1_apply_role_without_password
+          ansible.builtin.include_role:
+            name: role_smallstep
+          vars:
+            smallstep_ca_password: ""
+
+        - name: test_ac1_fail_when_role_accepts_empty_password
+          ansible.builtin.fail:
+            msg: "the role must refuse to run without the vault supplied password"
+      rescue:
+        - name: test_ac1_assert_role_refused_empty_password
+          ansible.builtin.assert:
+            that:
+              - ansible_failed_result is defined
+            fail_msg: "the role must fail when the vault password is empty"
+
+    # AC-2: secrets and unit run under a dedicated, hardened account
+    - name: test_ac2_stat_secrets_directory
+      ansible.builtin.stat:
+        path: /opt/smallstep/ca/secrets
+      register: ac2_secrets_dir
+
+    - name: test_ac2_assert_secrets_directory_mode
+      ansible.builtin.assert:
+        that:
+          - ac2_secrets_dir.stat.exists
+          - ac2_secrets_dir.stat.mode == '0700'
+          - ac2_secrets_dir.stat.pw_name == 'step'
+          - ac2_secrets_dir.stat.gr_name == 'step'
+        fail_msg: "the secrets directory must be 0700 owned by the service account"
+
+    - name: test_ac2_stat_intermediate_key
+      ansible.builtin.stat:
+        path: /opt/smallstep/ca/secrets/intermediate_ca_key
+      register: ac2_intermediate_key
+
+    - name: test_ac2_assert_intermediate_key_mode
+      ansible.builtin.assert:
+        that:
+          - ac2_intermediate_key.stat.exists
+          - ac2_intermediate_key.stat.mode == '0600'
+          - ac2_intermediate_key.stat.pw_name == 'step'
+        fail_msg: "CA private keys must be 0600 owned by the service account"
+
+    - name: test_ac2_slurp_unit
+      ansible.builtin.slurp:
+        src: /etc/systemd/system/smallstep.service
+      register: ac2_unit
+
+    - name: test_ac2_assert_unit_hardening
+      ansible.builtin.assert:
+        that:
+          - "'User=step' in (ac2_unit.content | b64decode)"
+          - "'Group=step' in (ac2_unit.content | b64decode)"
+          - "'NoNewPrivileges=yes' in (ac2_unit.content | b64decode)"
+          - "'PrivateTmp=yes' in (ac2_unit.content | b64decode)"
+          - "'ProtectSystem=strict' in (ac2_unit.content | b64decode)"
+          - "'ProtectHome=yes' in (ac2_unit.content | b64decode)"
+          - "'RestrictAddressFamilies=' in (ac2_unit.content | b64decode)"
+          - "'CapabilityBoundingSet=' in (ac2_unit.content | b64decode)"
+        fail_msg: "the unit must run as the service account with hardening directives"
+
+    - name: test_ac2_service_is_active
+      ansible.builtin.command:
+        cmd: systemctl is-active smallstep
+      changed_when: false
+      register: ac2_service_state
+
+    - name: test_ac2_read_main_pid
+      ansible.builtin.command:
+        cmd: systemctl show -p MainPID --value smallstep
+      changed_when: false
+      register: ac2_main_pid
+
+    - name: test_ac2_read_process_owner
+      ansible.builtin.command:
+        cmd: "ps -o user= -p {{ ac2_main_pid.stdout | trim }}"
+      changed_when: false
+      register: ac2_process_owner
+
+    - name: test_ac2_assert_service_runs_as_step
+      ansible.builtin.assert:
+        that:
+          - ac2_service_state.stdout | trim == 'active'
+          - ac2_process_owner.stdout | trim == 'step'
+        fail_msg: "the CA must run as the step service account"
+
+    # AC-3: the distribution directory publishes no private key and uses HTTPS
+    - name: test_ac3_search_distribution_for_private_keys
+      ansible.builtin.find:
+        paths: /opt/smallstep/www
+        contains: "PRIVATE KEY"
+        file_type: file
+      register: ac3_private_keys
+
+    - name: test_ac3_find_key_files_in_distribution
+      ansible.builtin.find:
+        paths: /opt/smallstep/www
+        patterns: "*.key"
+        file_type: file
+      register: ac3_key_files
+
+    - name: test_ac3_assert_no_private_key_published
+      ansible.builtin.assert:
+        that:
+          - ac3_private_keys.matched == 0
+          - ac3_key_files.matched == 0
+        fail_msg: "the distribution directory must not contain private keys"
+
+    - name: test_ac3_assert_distribution_url_is_https
+      ansible.builtin.assert:
+        that:
+          - "'smallstep_ca_scripts_url: \"https://' in ac1_defaults"
+        fail_msg: "the client distribution URL must use HTTPS"
+
+    - name: test_ac3_stat_published_certificate
+      ansible.builtin.stat:
+        path: /opt/smallstep/www/certs/molecule/molecule.crt
+      register: ac3_published_cert
+
+    - name: test_ac3_stat_private_key_outside_distribution
+      ansible.builtin.stat:
+        path: /opt/smallstep/ca/issued/molecule/molecule.key
+      register: ac3_private_key
+
+    - name: test_ac3_assert_key_lives_outside_distribution
+      ansible.builtin.assert:
+        that:
+          - ac3_published_cert.stat.exists
+          - ac3_private_key.stat.exists
+          - ac3_private_key.stat.mode == '0600'
+        fail_msg: "the issued key must exist under the CA tree with mode 0600"
+
+    # AC-4: the ACME provisioner issues certificates that chain to the root
+    - name: test_ac4_slurp_ca_config
+      ansible.builtin.slurp:
+        src: /opt/smallstep/ca/config/ca.json
+      register: ac4_ca_config
+
+    - name: test_ac4_assert_acme_provisioner_is_configured
+      ansible.builtin.assert:
+        that:
+          - "'\"type\": \"ACME\"' in (ac4_ca_config.content | b64decode)"
+          - "'\"name\": \"acme\"' in (ac4_ca_config.content | b64decode)"
+        fail_msg: "ca.json must contain the ACME provisioner"
+
+    - name: test_ac4_request_certificate_through_acme
+      ansible.builtin.command:
+        cmd: >
+          /opt/smallstep/bin/step ca certificate acme-test.internal
+          /tmp/acme-test.crt /tmp/acme-test.key
+          --provisioner acme
+          --san acme-test.internal
+          --ca-url https://ca.internal.guru:4443
+          --root /opt/smallstep/ca/certs/root_ca.crt
+          --not-after 1h
+          --force
+      environment:
+        STEPPATH: /tmp/step-acme
+      changed_when: false
+      register: ac4_acme_issue
+
+    - name: test_ac4_assert_acme_issued_a_certificate
+      ansible.builtin.assert:
+        that:
+          - ac4_acme_issue.rc == 0
+        fail_msg: "an ACME client must obtain a certificate"
+
+    - name: test_ac4_verify_chain_against_root
+      ansible.builtin.command:
+        cmd: >
+          /opt/smallstep/bin/step certificate verify /tmp/acme-test.crt
+          --roots /opt/smallstep/ca/certs/root_ca.crt
+      environment:
+        STEPPATH: /tmp/step-acme
+      changed_when: false
+
+    # AC-5: a configuration change restarts the service
+    - name: test_ac5_read_pid_before_change
+      ansible.builtin.command:
+        cmd: systemctl show -p MainPID --value smallstep
+      changed_when: false
+      register: ac5_pid_before
+
+    - name: test_ac5_read_current_duration
+      ansible.builtin.slurp:
+        src: /opt/smallstep/ca/config/ca.json
+      register: ac5_current_config
+
+    - name: test_ac5_choose_a_changed_duration
+      ansible.builtin.set_fact:
+        ac5_new_duration: "{{ '4380h' if '87660h' in (ac5_current_config.content | b64decode) else '87660h' }}"
+
+    - name: test_ac5_apply_a_configuration_change
+      ansible.builtin.include_role:
+        name: role_smallstep
+      vars:
+        smallstep_max_tls_cert_duration: "{{ ac5_new_duration }}"
+
+    - name: test_ac5_flush_handlers
+      ansible.builtin.meta: flush_handlers
+
+    - name: test_ac5_read_pid_after_change
+      ansible.builtin.command:
+        cmd: systemctl show -p MainPID --value smallstep
+      changed_when: false
+      register: ac5_pid_after
+
+    - name: test_ac5_assert_service_restarted
+      ansible.builtin.assert:
+        that:
+          - ac5_pid_after.stdout | trim != '0'
+          - ac5_pid_after.stdout | trim != ac5_pid_before.stdout | trim
+        fail_msg: "the service must restart when the CA configuration changes"
+
+    - name: test_ac5_slurp_ca_config_after_change
+      ansible.builtin.slurp:
+        src: /opt/smallstep/ca/config/ca.json
+      register: ac5_ca_config
+
+    - name: test_ac5_assert_change_is_effective
+      ansible.builtin.assert:
+        that:
+          - "'\"maxTLSCertDuration\": \"' ~ ac5_new_duration ~ '\"' in (ac5_ca_config.content | b64decode)"
+        fail_msg: "the changed configuration must be effective"
+
+    # AC-6: database, secrets and configuration are archived with retention
+    - name: test_ac6_stat_todays_backup
+      ansible.builtin.stat:
+        path: "/opt/smallstep/backup/smallstep-ca-{{ ansible_date_time.date }}.tar.gz"
+      register: ac6_backup
+
+    - name: test_ac6_assert_backup_exists
+      ansible.builtin.assert:
+        that:
+          - ac6_backup.stat.exists
+          - ac6_backup.stat.mode == '0600'
+        fail_msg: "a 0600 CA backup archive must exist"
+
+    - name: test_ac6_list_backup_members
+      ansible.builtin.command:
+        cmd: "tar -tzf /opt/smallstep/backup/smallstep-ca-{{ ansible_date_time.date }}.tar.gz"
+      changed_when: false
+      register: ac6_backup_members
+
+    - name: test_ac6_assert_backup_contents
+      ansible.builtin.assert:
+        that:
+          - "'db/' in ac6_backup_members.stdout"
+          - "'secrets/' in ac6_backup_members.stdout"
+          - "'config/ca.json' in ac6_backup_members.stdout"
+        fail_msg: "the backup must contain the database, secrets and configuration"
+
+    - name: test_ac6_create_expired_backup_fixture
+      ansible.builtin.copy:
+        content: ""
+        dest: /opt/smallstep/backup/smallstep-ca-1999-01-01.tar.gz
+        owner: step
+        group: step
+        mode: "0600"
+
+    - name: test_ac6_age_the_fixture
+      ansible.builtin.command:
+        cmd: touch -d "30 days ago" /opt/smallstep/backup/smallstep-ca-1999-01-01.tar.gz
+      changed_when: false
+
+    - name: test_ac6_run_backup_tasks
+      ansible.builtin.include_role:
+        name: role_smallstep
+        tasks_from: backup.yml
+
+    - name: test_ac6_stat_expired_backup
+      ansible.builtin.stat:
+        path: /opt/smallstep/backup/smallstep-ca-1999-01-01.tar.gz
+      register: ac6_expired_backup
+
+    - name: test_ac6_assert_retention_removed_expired_backup
+      ansible.builtin.assert:
+        that:
+          - not ac6_expired_backup.stat.exists
+          - "'smallstep_backup_retention: 7' in ac1_defaults"
+        fail_msg: "backups older than the retention period must be removed"

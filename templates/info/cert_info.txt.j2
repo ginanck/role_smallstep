@@ -46,10 +46,8 @@ Provisioner: {{ cert_details.extensions.step_provisioner.name | default(cert_ite
 CA Fingerprint: {{ smallstep_ca_fingerprint }}
 
 Files generated:
-- Private Key: {{ smallstep_www_certs_dir }}/{{ cert_item.name }}/{{ cert_item.name }}.key
+- Private Key: {{ smallstep_issued_dir }}/{{ cert_item.name }}/{{ cert_item.name }}.key (not published)
 - Certificate: {{ smallstep_www_certs_dir }}/{{ cert_item.name }}/{{ cert_item.name }}.crt
-- CA Certificate: {{ smallstep_www_certs_dir }}/{{ cert_item.name }}/ca.crt
 - Fullchain Certificate: {{ smallstep_www_certs_dir }}/{{ cert_item.name }}/{{ cert_item.name }}-fullchain.crt
-- Renewal Script: {{ smallstep_www_certs_dir }}/{{ cert_item.name }}/renew_{{ cert_item.name }}.sh
 
 Generated on: {{ ansible_date_time.iso8601 }}

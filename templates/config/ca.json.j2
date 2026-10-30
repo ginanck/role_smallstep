@@ -1,8 +1,8 @@
 {
-  "root": "{{ smallstep_bin_dir }}/ca/certs/root_ca.crt",
+  "root": "{{ smallstep_ca_certs_dir }}/root_ca.crt",
   "federatedRoots": null,
-  "crt": "{{ smallstep_bin_dir }}/ca/certs/intermediate_ca.crt",
-  "key": "{{ smallstep_bin_dir }}/ca/secrets/intermediate_ca_key",
+  "crt": "{{ smallstep_ca_certs_dir }}/intermediate_ca.crt",
+  "key": "{{ smallstep_ca_secrets_dir }}/intermediate_ca_key",
   "address": ":{{ smallstep_ca_port }}",
   "dnsNames": [
     "{{ smallstep_ca_dns }}"
@@ -12,7 +12,7 @@
   },
   "db": {
     "type": "badgerv2",
-    "dataSource": "{{ smallstep_bin_dir }}/ca/db"
+    "dataSource": "{{ smallstep_ca_db_dir }}"
   },
   "authority": {
     "provisioners": [
@@ -20,12 +20,21 @@
         "type": "JWK",
         "name": "{{ smallstep_ca_provisioner }}",
         "key": {{ smallstep_provisioner_key | to_json }},
-        "encryptedKey": {{ smallstep_provisioner_encrypted_key | to_json | to_json }},
+        "encryptedKey": {{ smallstep_provisioner_encrypted_key | to_json }},
         "claims": {
           "maxTLSCertDuration": "{{ smallstep_max_tls_cert_duration }}",
           "defaultTLSCertDuration": "{{ smallstep_default_tls_cert_duration }}"
         }
-      }
+      }{% if smallstep_acme_enabled | bool %},
+      {
+        "type": "ACME",
+        "name": "{{ smallstep_acme_provisioner_name }}",
+        "requireEAB": {{ smallstep_acme_require_eab | bool | to_json }},
+        "claims": {
+          "maxTLSCertDuration": "{{ smallstep_max_tls_cert_duration }}",
+          "defaultTLSCertDuration": "{{ smallstep_default_tls_cert_duration }}"
+        }
+      }{% endif %}
     ]
   },
   "tls": {

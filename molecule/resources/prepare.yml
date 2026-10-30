@@ -2,5 +2,25 @@
 - name: Prepare
   hosts: all
   become: true
-  roles:
-    - role_base
+  tasks:
+    # Rocky Linux 8 images ship python3.11 for ansible-core but only python3.6
+    # dnf bindings, so ansible.builtin.dnf cannot run there. Detect the bindings
+    # and fall back to the image baseline instead of failing the scenario.
+    - name: Detect dnf python bindings for the target interpreter
+      ansible.builtin.command:
+        cmd: "{{ ansible_facts.python.executable }} -c 'import dnf'"
+      register: prepare_dnf_bindings
+      changed_when: false
+      failed_when: false
+
+    - name: Apply the base role
+      ansible.builtin.include_role:
+        name: role_base
+      when: prepare_dnf_bindings.rc == 0
+
+    - name: Use the image baseline when dnf bindings are unavailable
+      ansible.builtin.debug:
+        msg: >-
+          No dnf python bindings for {{ ansible_facts.python.executable }};
+          role_base package management is skipped and the image tools are used.
+      when: prepare_dnf_bindings.rc != 0
